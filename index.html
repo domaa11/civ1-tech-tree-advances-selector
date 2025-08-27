@@ -917,7 +917,7 @@
             oldOrder: currentOrder,
             newOrder,
           });
-          renderCustomOrder(newOrder);
+          renderCustomOrder(newOrder, true); // Animate the reordering
         } else {
           console.log("No dependency violations found, order is valid");
         }
@@ -1171,39 +1171,77 @@
         return validatedOrder;
       }
 
-      function renderCustomOrder(order) {
+      function renderCustomOrder(order, animate = false) {
         const chainEl = document.getElementById("chain");
-        chainEl.innerHTML = "";
 
-        order.forEach((tech, index) => {
-          const li = document.createElement("li");
-          li.dataset.techName = tech;
-          li.style.cursor = "grab";
+        if (!animate) {
+          // Direct render without animation
+          chainEl.innerHTML = "";
 
-          // Add allows information with color coding
-          const techAllows = getTechnologyAllows(tech);
-          let allowsHtml = "";
-          let allowsChips = [];
+          order.forEach((tech, index) => {
+            const li = document.createElement("li");
+            li.dataset.techName = tech;
+            li.style.cursor = "grab";
 
-          Object.entries(techAllows).forEach(([category, items]) => {
-            if (items.length > 0) {
-              items.forEach((item) => {
-                const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
-                allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
-              });
+            // Add allows information with color coding
+            const techAllows = getTechnologyAllows(tech);
+            let allowsHtml = "";
+            let allowsChips = [];
+
+            Object.entries(techAllows).forEach(([category, items]) => {
+              if (items.length > 0) {
+                items.forEach((item) => {
+                  const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
+                  allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
+                });
+              }
+            });
+
+            if (allowsChips.length > 0) {
+              allowsHtml = allowsChips.join("");
             }
+
+            li.innerHTML = `<strong>${tech}</strong>${allowsHtml}`;
+            chainEl.appendChild(li);
           });
 
-          if (allowsChips.length > 0) {
-            allowsHtml = allowsChips.join("");
+          // Add the target tech at the end
+          const currentTech = techSelect.value;
+          if (currentTech && !order.includes(currentTech)) {
+            const final = document.createElement("li");
+            final.innerHTML = `<strong class="accent">→ ${currentTech}</strong>`;
+            final.style.cursor = "default";
+            final.classList.add("no-drag");
+            chainEl.appendChild(final);
           }
 
-          li.innerHTML = `<strong>${tech}</strong>${allowsHtml}`;
+          // Re-initialize SortableJS
+          initializeSortable();
+          return;
+        }
 
-          chainEl.appendChild(li);
+        // Animate existing elements moving to new positions
+        const currentItems = Array.from(chainEl.querySelectorAll("li:not(.no-drag)"));
+        const currentOrder = currentItems.map((item) => item.dataset.techName);
+
+        // If orders are the same, no animation needed
+        if (JSON.stringify(currentOrder) === JSON.stringify(order)) {
+          return;
+        }
+
+        // Create a map of current positions
+        const currentPositions = {};
+        currentItems.forEach((item, index) => {
+          currentPositions[item.dataset.techName] = index;
         });
 
-        // Add the target tech at the end
+        // Create a map of new positions
+        const newPositions = {};
+        order.forEach((tech, index) => {
+          newPositions[tech] = index;
+        });
+
+        // Add the target tech at the end if needed
         const currentTech = techSelect.value;
         if (currentTech && !order.includes(currentTech)) {
           const final = document.createElement("li");
@@ -1213,8 +1251,47 @@
           chainEl.appendChild(final);
         }
 
-        // Re-initialize SortableJS
-        initializeSortable();
+        // Enable animations on all items
+        currentItems.forEach((item) => {
+          item.style.transition = "transform 0.5s ease";
+        });
+
+        // Animate each item to its new position
+        currentItems.forEach((item, index) => {
+          const techName = item.dataset.techName;
+          const oldPosition = currentPositions[techName];
+          const newPosition = newPositions[techName];
+
+          if (oldPosition !== newPosition) {
+            console.log(`${techName} moving from position ${oldPosition} to position ${newPosition}`);
+
+            // Calculate the transform needed
+            const itemHeight = item.offsetHeight + 8; // Include margin
+            const deltaY = (newPosition - oldPosition) * itemHeight;
+
+            // Apply the transform
+            item.style.transform = `translateY(${deltaY}px)`;
+
+            // After animation completes, update the DOM order
+            setTimeout(() => {
+              item.style.transition = "none";
+              item.style.transform = "";
+
+              // Move the item to its correct position in the DOM
+              const targetIndex = newPosition;
+              if (targetIndex < chainEl.children.length) {
+                chainEl.insertBefore(item, chainEl.children[targetIndex]);
+              } else {
+                chainEl.appendChild(item);
+              }
+            }, 500);
+          }
+        });
+
+        // Re-initialize SortableJS after all animations complete
+        setTimeout(() => {
+          initializeSortable();
+        }, 600);
       }
 
       function resetToOriginalOrder() {
