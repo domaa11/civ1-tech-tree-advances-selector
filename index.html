@@ -3,274 +3,595 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Civilization I - Multi-Target Tech Planner</title>
+    <title>Civilization I - Tech Planner</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
       :root {
         --bg: #0f172a;
-        --panel: #111827;
-        --muted: #94a3b8;
-        --text: #e5e7eb;
+        --surface: #1e293b;
+        --text: #f1f5f9;
+        --muted: #64748b;
         --accent: #38bdf8;
-        --unit-color: #fbbf24;
-        --building-color: #34d399;
-        --wonder-color: #a78bfa;
-        --other-color: #f87171;
+        --success: #34d399;
+        --warning: #fbbf24;
+        --error: #f87171;
       }
-      html,
-      body {
+
+      * {
         margin: 0;
         padding: 0;
-        height: 100%;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, Helvetica, sans-serif;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: var(--bg);
         color: var(--text);
+        line-height: 1.6;
+        padding: 20px;
       }
-      .wrap {
-        max-width: 900px;
-        margin: 40px auto;
-        padding: 24px;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
       }
-      h1 {
-        margin: 0 0 12px;
-        font-size: 24px;
-        letter-spacing: 0.3px;
+
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
       }
-      p {
-        margin: 0 0 16px;
+
+      .header h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, var(--accent), #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .header p {
+        font-size: 1.1rem;
         color: var(--muted);
+        max-width: 600px;
+        margin: 0 auto;
       }
-      select,
-      input[type="text"] {
-        width: 100%;
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: #0b1220;
-        color: var(--text);
-      }
-      .row {
+
+      .main-content {
         display: grid;
-        gap: 14px;
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 2fr;
+        gap: 30px;
+        margin-bottom: 30px;
       }
-      @media (min-width: 720px) {
-        .row {
-          grid-template-columns: 1fr 1fr;
-        }
+
+      .targets-panel {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
-      .panel {
+
+      .targets-panel h2 {
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .targets-panel h2::before {
+        content: "🎯";
+        font-size: 1.2rem;
+      }
+
+      .add-target-section {
+        margin-bottom: 24px;
+      }
+
+      .add-target-btn {
+        width: 100%;
         padding: 16px;
-        background: #0b1220;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(135deg, var(--accent), #818cf8);
+        border: none;
         border-radius: 12px;
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       }
-      .muted {
-        color: var(--muted);
+
+      .add-target-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(56, 189, 248, 0.3);
       }
-      .chips {
+
+      .add-target-btn::before {
+        content: "+";
+        font-size: 1.5rem;
+        font-weight: 300;
+      }
+
+      .target-pills {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-      }
-      .chip {
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: #0f172a;
-        font-size: 13px;
-      }
-      .list {
-        margin-top: 10px;
-      }
-      .list li {
-        margin: 6px 0;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: #0f172a;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .small {
-        font-size: 12px;
-      }
-      .accent {
-        color: var(--accent);
-      }
-      .allows-chip {
-        font-size: 11px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 8px;
-        font-weight: 500;
-      }
-      .allows-unit {
-        background: #fbbf24;
-        color: #000;
-      }
-      .allows-building {
-        background: #34d399;
-        color: #000;
-      }
-      .allows-wonder {
-        background: #a78bfa;
-        color: #000;
-      }
-      .allows-other {
-        background: #f87171;
-        color: #000;
-      }
-      .allows-list {
-        margin-top: 4px;
-        font-size: 11px;
-        color: var(--muted);
-      }
-      .footer {
-        margin-top: 20px;
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .inline-code {
-        padding: 0.1em 0.4em;
-        border-radius: 6px;
-        background: #0b1220;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        margin-bottom: 16px;
       }
 
-      /* SortableJS visual feedback */
+      .target-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(56, 189, 248, 0.1);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 20px;
+        font-size: 0.9rem;
+        color: var(--accent);
+        font-weight: 500;
+      }
+
+      .target-pill .remove-btn {
+        background: none;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0;
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: background 0.2s;
+      }
+
+      .target-pill .remove-btn:hover {
+        background: rgba(56, 189, 248, 0.2);
+      }
+
+      .target-summary {
+        padding: 12px;
+        background: rgba(56, 189, 248, 0.05);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .research-panel {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .research-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .research-header h2 {
+        font-size: 1.5rem;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .research-header h2::before {
+        content: "📋";
+        font-size: 1.2rem;
+      }
+
+      .research-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border: 1px solid var(--muted);
+        background: transparent;
+        color: var(--muted);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+      }
+
+      .btn:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+      }
+
+      .btn.primary:hover {
+        background: #0ea5e9;
+      }
+
+      .research-list {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        min-height: 200px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .research-list.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      .research-list ol {
+        list-style: none;
+        counter-reset: tech-counter;
+      }
+
+      .research-list li {
+        counter-increment: tech-counter;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        cursor: grab;
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .research-list li::before {
+        content: counter(tech-counter);
+        background: var(--accent);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+
+      .research-list li:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
+      }
+
+      .research-list li.target {
+        background: rgba(56, 189, 248, 0.1);
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+
+      .research-list li.target::before {
+        background: var(--accent);
+      }
+
+      .tech-name {
+        font-weight: 600;
+        flex: 1;
+      }
+
+      .tech-name.target {
+        color: var(--accent);
+      }
+
+      .tech-allows {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+
+      .allows-chip {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+      }
+
+      .allows-unit {
+        background: rgba(34, 197, 94, 0.2);
+        color: #4ade80;
+      }
+
+      .allows-building {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+      }
+
+      .allows-wonder {
+        background: rgba(168, 85, 247, 0.2);
+        color: #a78bfa;
+      }
+
+      .allows-other {
+        background: rgba(251, 191, 36, 0.2);
+        color: #fbbf24;
+      }
+
+      .validation-status {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .validation-status.valid {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+      }
+
+      .validation-status.warning {
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        color: #fbbf24;
+      }
+
+      .saved-plans {
+        background: var(--surface);
+        border-radius: 16px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .saved-plans h2 {
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .saved-plans h2::before {
+        content: "💾";
+        font-size: 1.2rem;
+      }
+
+      .save-section {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .save-input {
+        flex: 1;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+
+      .save-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .saved-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .saved-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        transition: all 0.2s;
+      }
+
+      .saved-item:hover {
+        background: rgba(0, 0, 0, 0.3);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .saved-item-info {
+        flex: 1;
+      }
+
+      .saved-item-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .saved-item-details {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .saved-item-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .btn-small {
+        padding: 6px 12px;
+        border: 1px solid var(--muted);
+        background: transparent;
+        color: var(--muted);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+      }
+
+      .btn-small:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .btn-small.danger:hover {
+        border-color: var(--error);
+        color: var(--error);
+      }
+
+      .dropdown {
+        position: absolute;
+        background: var(--surface);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 16px;
+        width: 300px;
+        max-height: 400px;
+        z-index: 1000;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+      }
+
+      .dropdown-search {
+        width: 100%;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: var(--text);
+        font-size: 0.9rem;
+        margin-bottom: 12px;
+      }
+
+      .dropdown-search:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .dropdown-options {
+        max-height: 250px;
+        overflow-y: auto;
+      }
+
+      .dropdown-option {
+        padding: 10px 12px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: background 0.2s;
+        font-size: 0.9rem;
+      }
+
+      .dropdown-option:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
       .sortable-ghost {
-        opacity: 0.4;
+        opacity: 0.5;
         background: rgba(56, 189, 248, 0.1) !important;
       }
 
       .sortable-chosen {
         background: rgba(56, 189, 248, 0.2) !important;
+        border-color: var(--accent) !important;
       }
 
-      .sortable-drag {
-        opacity: 0.8;
-        transform: rotate(5deg);
-      }
+      @media (max-width: 768px) {
+        .main-content {
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
 
-      .no-drag {
-        cursor: default !important;
-      }
+        .header h1 {
+          font-size: 2rem;
+        }
 
-      /* Ensure inputs stay within their containers */
-      input,
-      select {
-        width: 100%;
-        box-sizing: border-box;
+        .research-actions {
+          flex-direction: column;
+        }
+
+        .save-section {
+          flex-direction: column;
+        }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <h1>Sid Meier’s Civilization I – Tech Prerequisite Explorer</h1>
-      <p>Plan your technology path by selecting multiple target technologies. The app will show you all prerequisites needed and let you reorder them to optimize your research strategy.</p>
+    <div class="container">
+      <div class="header">
+        <h1>Civilization I Tech Planner</h1>
+        <p>Plan your technology research path by selecting targets and optimizing the order</p>
+      </div>
 
-      <div class="row">
-        <div class="panel">
-          <h3 style="margin-top: 0; margin-bottom: 16px; color: var(--accent)">How to Use</h3>
-          <div style="margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.05); border-radius: 8px; font-size: 13px; line-height: 1.5">
-            <p style="margin: 0 0 8px 0"><strong>1. Add Target Technologies</strong></p>
-            <p style="margin: 0 0 8px 0">Click "+ Add Target" on the right to select technologies you want to research.</p>
-            <p style="margin: 0 0 8px 0"><strong>2. Reorder Research</strong></p>
-            <p style="margin: 0 0 8px 0">Drag technologies to optimize your research order.</p>
-            <p style="margin: 0 0 8px 0"><strong>3. Save Your Plan</strong></p>
-            <p style="margin: 0">Save your optimized research path for later reference.</p>
+      <div class="main-content">
+        <div class="targets-panel">
+          <h2>Research Targets</h2>
+
+          <div class="add-target-section">
+            <button class="add-target-btn" onclick="showAddTargetDropdown()">Add Technology Target</button>
           </div>
 
-          <!-- Saved Lists Section -->
-          <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
-            <h4 style="margin: 0 0 12px 0; color: var(--text)">Saved Plans</h4>
-            <div id="savedLists" style="margin-top: 12px">
-              <!-- Saved lists will appear here -->
-            </div>
+          <div class="target-pills" id="targetPills">
+            <!-- Target pills will appear here -->
           </div>
+
+          <div class="target-summary" id="targetSummary">No targets selected</div>
         </div>
 
-        <div class="panel">
-          <!-- Save Button at Top -->
-          <div style="display: flex; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px">
-            <input
-              id="saveNameTop"
-              type="text"
-              placeholder="Save this list as..."
-              style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); background: #0b1220; color: var(--text); font-size: 13px"
-            />
-            <button
-              id="saveBtnTop"
-              onclick="saveCurrentListFromTop()"
-              style="padding: 8px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-weight: 500; cursor: pointer; font-size: 13px"
-            >
-              Save List
-            </button>
-          </div>
-
-          <!-- Multi-Target Section -->
-          <div id="multiTargetSection" style="margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.1); border-radius: 8px">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
-              <label class="muted small">Targets:</label>
-              <button
-                id="addTargetBtn"
-                onclick="showAddTargetDropdown()"
-                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer"
-              >
-                + Add Target
-              </button>
-            </div>
-            <div id="targetPills" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px">
-              <!-- Target pills will appear here -->
-            </div>
-            <div id="targetSummary" class="muted small">
-              <!-- Combined prerequisite count will appear here -->
+        <div class="research-panel">
+          <div class="research-header">
+            <h2>Research Order</h2>
+            <div class="research-actions">
+              <button class="btn" onclick="clearAll()">Clear</button>
+              <button class="btn primary" onclick="scrollToSaveAndFocus()">Save Plan</button>
             </div>
           </div>
 
-          <!-- Add Target Dropdown (hidden by default) -->
-          <div
-            id="addTargetDropdown"
-            style="
-              display: none;
-              position: absolute;
-              background: #0b1220;
-              border: 1px solid rgba(255, 255, 255, 0.15);
-              border-radius: 8px;
-              padding: 8px;
-              width: 250px;
-              max-height: 300px;
-              z-index: 1000;
-              margin-top: 4px;
-            "
-          >
-            <!-- Technology options will be populated here -->
+          <div class="research-list" id="chain">
+            <div class="empty">Add technology targets to see your research path</div>
           </div>
 
-          <div class="chips" id="summary"></div>
-
-          <!-- Reorderable List Section -->
-          <div style="margin-top: 16px">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-              <label class="muted small">Research Order (drag to reorder)</label>
-              <button
-                id="resetOrderBtn"
-                onclick="resetToOriginalOrder()"
-                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--muted); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer"
-              >
-                Reset Order
-              </button>
-            </div>
-            <ol class="list" id="chain" style="cursor: grab"></ol>
+          <div class="validation-status" id="notes" style="display: none">
+            <!-- Validation status will appear here -->
           </div>
-
-          <div id="notes" class="footer"></div>
         </div>
       </div>
+
+      <div class="saved-plans">
+        <h2>Saved Plans</h2>
+
+        <div class="save-section">
+          <input type="text" class="save-input" id="saveNameInput" placeholder="Enter plan name..." />
+          <button class="btn primary" onclick="saveCurrentList()">Save</button>
+        </div>
+
+        <div class="saved-list" id="savedLists">
+          <!-- Saved plans will appear here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Target Dropdown -->
+    <div id="addTargetDropdown" class="dropdown" style="display: none">
+      <!-- Dropdown content will be populated here -->
     </div>
 
     <script>
@@ -558,7 +879,7 @@
       const allTechs = Object.keys(advances).sort((a, b) => a.localeCompare(b));
 
       const chainEl = document.getElementById("chain");
-      const summaryEl = document.getElementById("summary");
+      const summaryEl = document.getElementById("targetSummary");
       const notesEl = document.getElementById("notes");
 
       // Helper function to categorize an item
@@ -618,17 +939,21 @@
       }
 
       function renderMultiTargetChain() {
+        const chainEl = document.getElementById("chain");
+        const summaryEl = document.getElementById("targetSummary");
+        const notesEl = document.getElementById("notes");
+
         if (selectedTargets.size === 0) {
-          summaryEl.innerHTML = "";
-          chainEl.innerHTML = "";
-          notesEl.innerHTML = "";
+          summaryEl.textContent = "No targets selected";
+          chainEl.innerHTML = '<div class="empty">Add technology targets to see your research path</div>';
+          notesEl.style.display = "none";
           return;
         }
 
         // Check if there's a custom order to preserve
         // Don't use getCurrentOrder() here as it can create circular dependency
-        const chainEl = document.getElementById("chain");
-        const existingItems = chainEl.querySelectorAll("li:not(.no-drag)");
+        const ol = chainEl.querySelector("ol");
+        const existingItems = ol ? ol.querySelectorAll("li:not(.no-drag)") : [];
         const hasCustomOrder = existingItems.length > 0;
 
         let currentOrder = [];
@@ -652,39 +977,17 @@
           combinedPrereqsLength: combinedPrereqs.length,
         });
 
-        // Summary chips
-        summaryEl.innerHTML = "";
-        const chip1 = document.createElement("div");
-        chip1.className = "chip";
-        chip1.textContent = `Targets: ${Array.from(selectedTargets).join(", ")}`;
-        summaryEl.appendChild(chip1);
-        const chip2 = document.createElement("div");
-        chip2.className = "chip";
-        chip2.textContent = `Prerequisites: ${combinedPrereqs.length}`;
-        summaryEl.appendChild(chip2);
-
-        // Add color legend
-        const legend = document.createElement("div");
-        legend.style.marginTop = "12px";
-        legend.style.fontSize = "11px";
-        legend.style.color = "var(--muted)";
-        legend.innerHTML = `
-          <div style="margin-bottom: 4px;"><strong>Allows:</strong></div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <span class="allows-chip allows-unit">Units</span>
-            <span class="allows-chip allows-building">Buildings</span>
-            <span class="allows-chip allows-wonder">Wonders</span>
-            <span class="allows-chip allows-other">Other</span>
-          </div>
-        `;
-        summaryEl.appendChild(legend);
+        // Update summary
+        if (selectedTargets.size === 1) {
+          summaryEl.textContent = `1 target • ${combinedPrereqs.length} prerequisites`;
+        } else {
+          summaryEl.textContent = `${selectedTargets.size} targets • ${combinedPrereqs.length} prerequisites`;
+        }
 
         // Render the ordered list
         chainEl.innerHTML = "";
         if (!combinedPrereqs.length) {
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${Array.from(selectedTargets).join(", ")}</strong> have no prerequisites.`;
-          chainEl.appendChild(li);
+          chainEl.innerHTML = '<div class="empty">Selected technologies have no prerequisites</div>';
         } else if (hasCustomOrder) {
           // Use the existing custom order, but ensure all targets are included
           const allTechsInOrder = [...currentOrder];
@@ -696,9 +999,15 @@
             }
           });
 
+          const ol = document.createElement("ol");
           allTechsInOrder.forEach((tech) => {
             const li = document.createElement("li");
-            const deps = "";
+
+            // Check if this is a target technology
+            const isTarget = selectedTargets.has(tech);
+            if (isTarget) {
+              li.classList.add("target");
+            }
 
             // Add allows information with color coding
             const techAllows = getTechnologyAllows(tech);
@@ -707,9 +1016,7 @@
 
             Object.entries(techAllows).forEach(([category, items]) => {
               if (items.length > 0) {
-                // Create individual chips for each item
                 items.forEach((item) => {
-                  // Map category names to singular form for CSS classes
                   const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
                   allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
                 });
@@ -717,27 +1024,29 @@
             });
 
             if (allowsChips.length > 0) {
-              allowsHtml = allowsChips.join("");
+              allowsHtml = `<div class="tech-allows">${allowsChips.join("")}</div>`;
             }
 
-            // Check if this is a target technology
-            const isTarget = selectedTargets.has(tech);
             const displayName = isTarget ? `→ ${tech}` : tech;
-            const className = isTarget ? "accent" : "";
+            const className = isTarget ? "target" : "";
 
-            li.innerHTML = `<strong class="${className}">${displayName}</strong>${deps}${allowsHtml}`;
-            li.style.cursor = "grab";
+            li.innerHTML = `
+              <div class="tech-name ${className}">${displayName}</div>
+              ${allowsHtml}
+            `;
             li.dataset.techName = tech;
             if (isTarget) {
               li.dataset.isTarget = "true";
             }
-            chainEl.appendChild(li);
+            ol.appendChild(li);
           });
+          chainEl.appendChild(ol);
         } else {
           // Use default prerequisite order
+          const ol = document.createElement("ol");
+
           combinedPrereqs.forEach((t, idx) => {
             const li = document.createElement("li");
-            const deps = "";
 
             // Add allows information with color coding
             const techAllows = getTechnologyAllows(t);
@@ -746,9 +1055,7 @@
 
             Object.entries(techAllows).forEach(([category, items]) => {
               if (items.length > 0) {
-                // Create individual chips for each item
                 items.forEach((item) => {
-                  // Map category names to singular form for CSS classes
                   const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
                   allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
                 });
@@ -756,24 +1063,30 @@
             });
 
             if (allowsChips.length > 0) {
-              allowsHtml = allowsChips.join("");
+              allowsHtml = `<div class="tech-allows">${allowsChips.join("")}</div>`;
             }
 
-            li.innerHTML = `<strong>${t}</strong>${deps}${allowsHtml}`;
-            li.style.cursor = "grab";
+            li.innerHTML = `
+              <div class="tech-name">${t}</div>
+              ${allowsHtml}
+            `;
             li.dataset.techName = t;
-            chainEl.appendChild(li);
+            ol.appendChild(li);
           });
 
           // Add target techs at the end
           selectedTargets.forEach((target) => {
-            const final = document.createElement("li");
-            final.innerHTML = `<strong class="accent">→ ${target}</strong>`;
-            final.style.cursor = "grab";
-            final.dataset.techName = target;
-            final.dataset.isTarget = "true";
-            chainEl.appendChild(final);
+            const li = document.createElement("li");
+            li.classList.add("target");
+            li.innerHTML = `
+              <div class="tech-name target">→ ${target}</div>
+            `;
+            li.dataset.techName = target;
+            li.dataset.isTarget = "true";
+            ol.appendChild(li);
           });
+
+          chainEl.appendChild(ol);
         }
 
         // Initialize SortableJS after rendering
@@ -803,30 +1116,11 @@
 
         selectedTargets.forEach((target) => {
           const pill = document.createElement("span");
-          pill.style.cssText = `
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            background: rgba(56, 189, 248, 0.1);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-            border-radius: 12px;
-            font-size: 12px;
-            color: var(--accent);
-          `;
+          pill.className = "target-pill";
 
           pill.innerHTML = `
             ${target}
-            <button onclick="removeTarget('${target}')" style="
-              background: none;
-              border: none;
-              color: var(--accent);
-              cursor: pointer;
-              font-size: 14px;
-              padding: 0;
-              margin: 0;
-              line-height: 1;
-            ">×</button>
+            <button class="remove-btn" onclick="removeTarget('${target}')">×</button>
           `;
 
           pillsContainer.appendChild(pill);
@@ -854,7 +1148,7 @@
 
       function showAddTargetDropdown() {
         const dropdown = document.getElementById("addTargetDropdown");
-        const addBtn = document.getElementById("addTargetBtn");
+        const addBtn = document.querySelector(".add-target-btn");
 
         if (dropdown.style.display === "block") {
           dropdown.style.display = "none";
@@ -864,28 +1158,17 @@
         // Position the dropdown near the add button
         const btnRect = addBtn.getBoundingClientRect();
         dropdown.style.left = `${btnRect.left}px`;
-        dropdown.style.top = `${btnRect.bottom + 4}px`;
+        dropdown.style.top = `${btnRect.bottom + 8}px`;
 
         // Create dropdown content with search
         dropdown.innerHTML = `
-          <div style="margin-bottom: 8px;">
-            <input 
-              id="targetSearchInput" 
-              type="text" 
-              placeholder="Search technologies..." 
-              style="
-                width: 100%;
-                padding: 6px 8px;
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 4px;
-                background: #0b1220;
-                color: var(--text);
-                font-size: 13px;
-                box-sizing: border-box;
-              "
-            />
-          </div>
-          <div id="targetOptions" style="max-height: 150px; overflow-y: auto;">
+          <input 
+            id="targetSearchInput" 
+            type="text" 
+            placeholder="Search technologies..." 
+            class="dropdown-search"
+          />
+          <div id="targetOptions" class="dropdown-options">
             <!-- Technology options will be populated here -->
           </div>
         `;
@@ -905,15 +1188,8 @@
 
           filteredTechs.forEach((tech) => {
             const option = document.createElement("div");
-            option.style.cssText = `
-              padding: 6px 8px;
-              cursor: pointer;
-              border-radius: 4px;
-              font-size: 13px;
-            `;
+            option.className = "dropdown-option";
             option.textContent = tech;
-            option.onmouseenter = () => (option.style.background = "rgba(255, 255, 255, 0.1)");
-            option.onmouseleave = () => (option.style.background = "transparent");
             option.onclick = () => {
               selectedTargets.add(tech);
               updateMultiTargetUI();
@@ -978,7 +1254,7 @@
       }
 
       function saveCurrentListFromTop() {
-        const nameInput = document.getElementById("saveNameTop");
+        const nameInput = document.getElementById("saveNameInput");
         const name = nameInput.value.trim();
 
         if (!name) {
@@ -1048,7 +1324,7 @@
         const listNames = Object.keys(savedLists).sort();
 
         if (listNames.length === 0) {
-          container.innerHTML = '<div style="color: var(--muted); font-size: 12px; text-align: center; padding: 12px;">No saved lists yet</div>';
+          container.innerHTML = '<div style="color: var(--muted); font-size: 0.9rem; text-align: center; padding: 20px;">No saved plans yet</div>';
           return;
         }
 
@@ -1057,16 +1333,18 @@
             const list = savedLists[name];
             const date = new Date(list.timestamp).toLocaleDateString();
             return `
-            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; margin-bottom: 8px;">
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 500; font-size: 13px; color: var(--text); margin-bottom: 2px;">${name}</div>
-                <div style="font-size: 11px; color: var(--muted);">
-                  ${list.targets ? list.targets.join(", ") : list.target} (${list.combinedPrereqs ? list.combinedPrereqs.length : list.prerequisites.length} prereqs) • ${date}
+            <div class="saved-item">
+              <div class="saved-item-info">
+                <div class="saved-item-name">${name}</div>
+                <div class="saved-item-details">
+                  ${list.targets ? list.targets.join(", ") : list.target} • ${list.combinedPrereqs ? list.combinedPrereqs.length : list.prerequisites.length} prerequisites • ${date}
                 </div>
               </div>
-              <button onclick="loadList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer;">Load</button>
-              <button onclick="renameList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--muted); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;">Rename</button>
-              <button onclick="deleteList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #f87171; background: transparent; color: #f87171; font-size: 11px; cursor: pointer;">Delete</button>
+              <div class="saved-item-actions">
+                <button class="btn-small" onclick="loadList('${name}')">Load</button>
+                <button class="btn-small" onclick="renameList('${name}')">Rename</button>
+                <button class="btn-small danger" onclick="deleteList('${name}')">Delete</button>
+              </div>
             </div>
           `;
           })
@@ -1075,7 +1353,7 @@
 
       // Add enter key support for save input
       document.addEventListener("DOMContentLoaded", function () {
-        const saveNameTopInput = document.getElementById("saveNameTop");
+        const saveNameTopInput = document.getElementById("saveNameInput");
 
         saveNameTopInput.addEventListener("keypress", function (e) {
           if (e.key === "Enter") {
@@ -1089,21 +1367,26 @@
 
       function initializeSortable() {
         const chainEl = document.getElementById("chain");
+        const ol = chainEl.querySelector("ol");
+
         if (sortableInstance) {
           sortableInstance.destroy();
         }
 
-        sortableInstance = new Sortable(chainEl, {
-          animation: 150,
-          ghostClass: "sortable-ghost",
-          chosenClass: "sortable-chosen",
-          dragClass: "sortable-drag",
-          filter: ".no-drag", // Prevent dragging the target tech arrow
-          onEnd: function (evt) {
-            // Auto-reorder dependent technologies after moving a prerequisite
-            autoReorderDependents(evt);
-          },
-        });
+        // Only initialize if there's an ordered list
+        if (ol) {
+          sortableInstance = new Sortable(ol, {
+            animation: 150,
+            ghostClass: "sortable-ghost",
+            chosenClass: "sortable-chosen",
+            dragClass: "sortable-drag",
+            filter: ".no-drag", // Prevent dragging the target tech arrow
+            onEnd: function (evt) {
+              // Auto-reorder dependent technologies after moving a prerequisite
+              autoReorderDependents(evt);
+            },
+          });
+        }
       }
 
       function autoReorderDependents(evt) {
@@ -1316,7 +1599,10 @@
       }
 
       function updateValidationStatus() {
-        if (selectedTargets.size === 0) return;
+        if (selectedTargets.size === 0) {
+          notesEl.style.display = "none";
+          return;
+        }
 
         const currentOrder = getCurrentOrder();
 
@@ -1353,17 +1639,29 @@
         }
 
         if (missingPrereqs.length > 0) {
-          notesEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Warning: Missing prerequisites: ${missingPrereqs.join(", ")}. Drag them back into the list or use Reset Order.</span>`;
+          notesEl.innerHTML = `⚠️ Warning: Missing prerequisites: ${missingPrereqs.join(", ")}. Drag them back into the list or use Reset Order.`;
+          notesEl.className = "validation-status warning";
+          notesEl.style.display = "block";
         } else if (orderingIssues.length > 0) {
-          notesEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Warning: Prerequisite order issues: ${orderingIssues.join(", ")}. Reorder technologies or use Reset Order.</span>`;
+          notesEl.innerHTML = `⚠️ Warning: Prerequisite order issues: ${orderingIssues.join(", ")}. Reorder technologies or use Reset Order.`;
+          notesEl.className = "validation-status warning";
+          notesEl.style.display = "block";
         } else {
-          notesEl.innerHTML = `✅ Valid research path.`;
+          notesEl.innerHTML = `✅ Valid research path`;
+          notesEl.className = "validation-status valid";
+          notesEl.style.display = "block";
         }
       }
 
       function getCurrentOrder() {
         const chainEl = document.getElementById("chain");
-        const listItems = chainEl.children;
+        const ol = chainEl.querySelector("ol");
+
+        if (!ol) {
+          return [];
+        }
+
+        const listItems = ol.children;
 
         console.log("getCurrentOrder debug:", {
           totalItems: listItems.length,
@@ -1381,16 +1679,16 @@
         const result = Array.from(listItems)
           .filter((item) => !item.classList.contains("no-drag"))
           .map((item, index) => {
-            // Try to get from dataset first, fall back to strong tag extraction
+            // Try to get from dataset first, fall back to tech-name div extraction
             if (item.dataset.techName) {
               console.log(`Item ${index}: Using dataset.techName = "${item.dataset.techName}"`);
               return item.dataset.techName;
             }
-            // Extract from strong tag (same logic as in render function)
-            const strongElement = item.querySelector("strong");
-            if (strongElement) {
-              const extracted = strongElement.textContent.trim();
-              console.log(`Item ${index}: Extracted from strong tag = "${extracted}"`);
+            // Extract from tech-name div (new structure)
+            const techNameElement = item.querySelector(".tech-name");
+            if (techNameElement) {
+              const extracted = techNameElement.textContent.trim().replace(/^→\s*/, "");
+              console.log(`Item ${index}: Extracted from tech-name div = "${extracted}"`);
               return extracted;
             }
             console.log(`Item ${index}: No tech name found`);
@@ -1439,15 +1737,16 @@
           // Direct render without animation
           chainEl.innerHTML = "";
 
+          const ol = document.createElement("ol");
           order.forEach((tech, index) => {
             const li = document.createElement("li");
             li.dataset.techName = tech;
-            li.style.cursor = "grab";
 
             // Check if this is a target technology
             const isTarget = selectedTargets.has(tech);
-            const displayName = isTarget ? `→ ${tech}` : tech;
-            const className = isTarget ? "accent" : "";
+            if (isTarget) {
+              li.classList.add("target");
+            }
 
             // Add allows information with color coding
             const techAllows = getTechnologyAllows(tech);
@@ -1464,18 +1763,25 @@
             });
 
             if (allowsChips.length > 0) {
-              allowsHtml = allowsChips.join("");
+              allowsHtml = `<div class="tech-allows">${allowsChips.join("")}</div>`;
             }
 
-            li.innerHTML = `<strong class="${className}">${displayName}</strong>${allowsHtml}`;
+            const displayName = isTarget ? `→ ${tech}` : tech;
+            const className = isTarget ? "target" : "";
+
+            li.innerHTML = `
+              <div class="tech-name ${className}">${displayName}</div>
+              ${allowsHtml}
+            `;
 
             // Set target attributes if this is a target
             if (isTarget) {
               li.dataset.isTarget = "true";
             }
 
-            chainEl.appendChild(li);
+            ol.appendChild(li);
           });
+          chainEl.appendChild(ol);
 
           // Add target techs at the end (only if they're not already in the order)
           selectedTargets.forEach((target) => {
@@ -1497,7 +1803,10 @@
         }
 
         // Animate existing elements moving to new positions
-        const currentItems = Array.from(chainEl.querySelectorAll("li:not(.no-drag)"));
+        const ol = chainEl.querySelector("ol");
+        if (!ol) return;
+
+        const currentItems = Array.from(ol.querySelectorAll("li:not(.no-drag)"));
         const currentOrder = currentItems.map((item) => item.dataset.techName);
 
         // If orders are the same, no animation needed
@@ -1535,11 +1844,13 @@
         selectedTargets.forEach((target) => {
           if (!order.includes(target)) {
             const final = document.createElement("li");
-            final.innerHTML = `<strong class="accent">→ ${target}</strong>`;
-            final.style.cursor = "grab";
+            final.classList.add("target");
+            final.innerHTML = `
+              <div class="tech-name target">→ ${target}</div>
+            `;
             final.dataset.techName = target;
             final.dataset.isTarget = "true";
-            chainEl.appendChild(final);
+            ol.appendChild(final);
           }
         });
 
@@ -1571,10 +1882,10 @@
 
               // Move the item to its correct position in the DOM
               const targetIndex = newPosition;
-              if (targetIndex < chainEl.children.length) {
-                chainEl.insertBefore(item, chainEl.children[targetIndex]);
+              if (targetIndex < ol.children.length) {
+                ol.insertBefore(item, ol.children[targetIndex]);
               } else {
-                chainEl.appendChild(item);
+                ol.appendChild(item);
               }
             }, 500);
           }
@@ -1588,15 +1899,34 @@
         }, 600);
       }
 
-      function resetToOriginalOrder() {
-        if (selectedTargets.size > 0) {
-          renderMultiTargetChain(); // This will restore the original prerequisite order
-        }
+      function clearAll() {
+        // Clear all selected targets
+        selectedTargets.clear();
+
+        // Update the UI
+        updateMultiTargetUI();
+        renderMultiTargetChain();
       }
 
       // Update the save function to include custom order
-      function saveCurrentListFromTop() {
-        const nameInput = document.getElementById("saveNameTop");
+      function scrollToSaveAndFocus() {
+        const saveSection = document.querySelector(".saved-plans");
+        const nameInput = document.getElementById("saveNameInput");
+
+        // Smooth scroll to the save section
+        saveSection.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+
+        // Focus the input after a short delay to ensure scroll completes
+        setTimeout(() => {
+          nameInput.focus();
+        }, 300);
+      }
+
+      function saveCurrentList() {
+        const nameInput = document.getElementById("saveNameInput");
         const name = nameInput.value.trim();
 
         if (!name) {
@@ -1637,7 +1967,7 @@
         renderSavedLists();
 
         // Show success message
-        const saveBtn = document.getElementById("saveBtnTop");
+        const saveBtn = document.querySelector(".btn.primary");
         const originalText = saveBtn.textContent;
         saveBtn.textContent = "Saved!";
         saveBtn.style.background = "#34d399";
