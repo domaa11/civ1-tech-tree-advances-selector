@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Civilization I – Tech Prerequisite Explorer</title>
+    <title>Civilization I - Multi-Target Tech Planner</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
       :root {
@@ -171,18 +171,25 @@
   <body>
     <div class="wrap">
       <h1>Sid Meier’s Civilization I – Tech Prerequisite Explorer</h1>
-      <p>Select a technology to see the prerequisite chain you need (in order). Data is encoded in a simple JS object (<span class="inline-code">{ [tech]: [req1, req2] }</span>).</p>
+      <p>Plan your technology path by selecting multiple target technologies. The app will show you all prerequisites needed and let you reorder them to optimize your research strategy.</p>
 
       <div class="row">
         <div class="panel">
-          <label for="search" class="muted small">Filter technologies</label>
-          <input id="search" type="text" placeholder="Type to filter… (e.g. 'Flight')" oninput="filterOptions()" />
-          <div style="height: 10px"></div>
-          <label for="tech" class="muted small">Choose a technology</label>
-          <select id="tech" size="12" onchange="render()"></select>
+          <h3 style="margin-top: 0; margin-bottom: 16px; color: var(--accent)">How to Use</h3>
+          <div style="margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.05); border-radius: 8px; font-size: 13px; line-height: 1.5">
+            <p style="margin: 0 0 8px 0"><strong>1. Add Target Technologies</strong></p>
+            <p style="margin: 0 0 8px 0">Click "+ Add Target" on the right to select technologies you want to research.</p>
+            <p style="margin: 0 0 8px 0"><strong>2. Review Prerequisites</strong></p>
+            <p style="margin: 0 0 8px 0">The app shows all prerequisites needed for your targets.</p>
+            <p style="margin: 0 0 8px 0"><strong>3. Reorder Research</strong></p>
+            <p style="margin: 0 0 8px 0">Drag technologies to optimize your research order.</p>
+            <p style="margin: 0 0 8px 0"><strong>4. Save Your Plan</strong></p>
+            <p style="margin: 0">Save your optimized research path for later reference.</p>
+          </div>
 
           <!-- Saved Lists Section -->
           <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+            <h4 style="margin: 0 0 12px 0; color: var(--text)">Saved Plans</h4>
             <div id="savedLists" style="margin-top: 12px">
               <!-- Saved lists will appear here -->
             </div>
@@ -205,6 +212,45 @@
             >
               Save List
             </button>
+          </div>
+
+          <!-- Multi-Target Section -->
+          <div id="multiTargetSection" style="margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.1); border-radius: 8px">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+              <label class="muted small">Targets:</label>
+              <button
+                id="addTargetBtn"
+                onclick="showAddTargetDropdown()"
+                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer"
+              >
+                + Add Target
+              </button>
+            </div>
+            <div id="targetPills" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px">
+              <!-- Target pills will appear here -->
+            </div>
+            <div id="targetSummary" class="muted small">
+              <!-- Combined prerequisite count will appear here -->
+            </div>
+          </div>
+
+          <!-- Add Target Dropdown (hidden by default) -->
+          <div
+            id="addTargetDropdown"
+            style="
+              display: none;
+              position: absolute;
+              background: #0b1220;
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              border-radius: 8px;
+              padding: 8px;
+              width: 250px;
+              max-height: 300px;
+              z-index: 1000;
+              margin-top: 4px;
+            "
+          >
+            <!-- Technology options will be populated here -->
           </div>
 
           <div class="chips" id="summary"></div>
@@ -230,6 +276,9 @@
     </div>
 
     <script>
+      // --- Global state for multiple targets ---
+      let selectedTargets = new Set();
+
       // --- Unified data structure: tech -> { prereqs: [], allows: {} } ---
       // Source: Civilization Wiki - https://civilization.fandom.com/wiki/List_of_advances_in_Civ1
       const advances = {
@@ -510,8 +559,6 @@
       // Build an alphabetised list of techs
       const allTechs = Object.keys(advances).sort((a, b) => a.localeCompare(b));
 
-      const techSelect = document.getElementById("tech");
-      const searchInput = document.getElementById("search");
       const chainEl = document.getElementById("chain");
       const summaryEl = document.getElementById("summary");
       const notesEl = document.getElementById("notes");
@@ -550,33 +597,6 @@
         return categorized;
       }
 
-      function populateOptions(list = allTechs) {
-        techSelect.innerHTML = "";
-
-        // Add default option
-        const defaultOpt = document.createElement("option");
-        defaultOpt.value = "";
-        defaultOpt.textContent = "Please choose a technology...";
-        defaultOpt.disabled = true;
-        defaultOpt.selected = true;
-        techSelect.appendChild(defaultOpt);
-
-        // Add technology options
-        list.forEach((t) => {
-          const opt = document.createElement("option");
-          opt.value = t;
-          opt.textContent = t;
-          techSelect.appendChild(opt);
-        });
-      }
-
-      function filterOptions() {
-        const q = searchInput.value.trim().toLowerCase();
-        const filtered = q ? allTechs.filter((t) => t.toLowerCase().includes(q)) : allTechs;
-        populateOptions(filtered);
-        // Don't auto-render when filtering, let user select
-      }
-
       // Depth-first search to gather prerequisites; returns in dependency order (prereqs first)
       function prerequisiteChain(target) {
         const seen = new Set();
@@ -595,25 +615,54 @@
       }
 
       function render() {
-        const tech = techSelect.value;
-        if (!tech) {
-          // Clear the display when no technology is selected
+        // This function is no longer needed since we only use the multi-target system
+        // The renderMultiTargetChain function handles all rendering now
+      }
+
+      function renderMultiTargetChain() {
+        if (selectedTargets.size === 0) {
           summaryEl.innerHTML = "";
           chainEl.innerHTML = "";
           notesEl.innerHTML = "";
           return;
         }
-        const chain = prerequisiteChain(tech);
+
+        // Check if there's a custom order to preserve
+        // Don't use getCurrentOrder() here as it can create circular dependency
+        const chainEl = document.getElementById("chain");
+        const existingItems = chainEl.querySelectorAll("li:not(.no-drag)");
+        const hasCustomOrder = existingItems.length > 0;
+
+        let currentOrder = [];
+        if (hasCustomOrder) {
+          // Read the order directly from the DOM elements in their visual order
+          currentOrder = Array.from(existingItems)
+            .map((item) => item.dataset.techName)
+            .filter((name) => name && advances[name]);
+
+          console.log("Reading custom order from DOM:", currentOrder);
+        }
+
+        // Get combined prerequisites for all targets
+        const combinedPrereqs = getCombinedPrerequisites();
+
+        console.log("renderMultiTargetChain debug:", {
+          selectedTargets: Array.from(selectedTargets),
+          currentOrder,
+          hasCustomOrder,
+          combinedPrereqs,
+          combinedPrereqsLength: combinedPrereqs.length,
+        });
 
         // Summary chips
         summaryEl.innerHTML = "";
         const chip1 = document.createElement("div");
         chip1.className = "chip";
-        chip1.textContent = `Target: ${tech}`;
+        chip1.textContent = `Targets: ${Array.from(selectedTargets).join(", ")}`;
         summaryEl.appendChild(chip1);
         const chip2 = document.createElement("div");
         chip2.className = "chip";
-        chip2.textContent = `Prerequisites: ${chain.length}`;
+        chip2.textContent = `Prerequisites: ${combinedPrereqs.length}`;
         summaryEl.appendChild(chip2);
 
         // Add color legend
@@ -634,12 +683,61 @@
 
         // Render the ordered list
         chainEl.innerHTML = "";
-        if (!chain.length) {
+        if (!combinedPrereqs.length) {
           const li = document.createElement("li");
-          li.innerHTML = `<strong>${tech}</strong> has no prerequisites.`;
+          li.innerHTML = `<strong>${Array.from(selectedTargets).join(", ")}</strong> have no prerequisites.`;
           chainEl.appendChild(li);
+        } else if (hasCustomOrder) {
+          // Use the existing custom order, but ensure all targets are included
+          const allTechsInOrder = [...currentOrder];
+
+          // Add any missing targets to the end
+          selectedTargets.forEach((target) => {
+            if (!allTechsInOrder.includes(target)) {
+              allTechsInOrder.push(target);
+            }
+          });
+
+          allTechsInOrder.forEach((tech) => {
+            const li = document.createElement("li");
+            const deps = "";
+
+            // Add allows information with color coding
+            const techAllows = getTechnologyAllows(tech);
+            let allowsHtml = "";
+            let allowsChips = [];
+
+            Object.entries(techAllows).forEach(([category, items]) => {
+              if (items.length > 0) {
+                // Create individual chips for each item
+                items.forEach((item) => {
+                  // Map category names to singular form for CSS classes
+                  const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
+                  allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
+                });
+              }
+            });
+
+            if (allowsChips.length > 0) {
+              allowsHtml = allowsChips.join("");
+            }
+
+            // Check if this is a target technology
+            const isTarget = selectedTargets.has(tech);
+            const displayName = isTarget ? `→ ${tech}` : tech;
+            const className = isTarget ? "accent" : "";
+
+            li.innerHTML = `<strong class="${className}">${displayName}</strong>${deps}${allowsHtml}`;
+            li.style.cursor = "grab";
+            li.dataset.techName = tech;
+            if (isTarget) {
+              li.dataset.isTarget = "true";
+            }
+            chainEl.appendChild(li);
+          });
         } else {
-          chain.forEach((t, idx) => {
+          // Use default prerequisite order
+          combinedPrereqs.forEach((t, idx) => {
             const li = document.createElement("li");
             const deps = "";
 
@@ -664,35 +762,195 @@
             }
 
             li.innerHTML = `<strong>${t}</strong>${deps}${allowsHtml}`;
+            li.style.cursor = "grab";
+            li.dataset.techName = t;
             chainEl.appendChild(li);
           });
-          const final = document.createElement("li");
-          final.innerHTML = `<strong class="accent">→ ${tech}</strong>`;
-          chainEl.appendChild(final);
-        }
 
-        // Set up data attributes for drag and drop
-        Array.from(chainEl.querySelectorAll("li")).forEach((li) => {
-          // Extract the technology name from the <strong> tag, not the entire text content
-          const strongElement = li.querySelector("strong");
-          if (strongElement) {
-            const name = strongElement.textContent.trim();
-            if (advances[name]) {
-              li.style.cursor = "grab";
-              li.dataset.techName = name;
-            }
-          } else if (li.textContent.includes("→")) {
-            // This is the target tech arrow - make it non-draggable
-            li.classList.add("no-drag");
-            li.style.cursor = "default";
-          }
-        });
+          // Add target techs at the end
+          selectedTargets.forEach((target) => {
+            const final = document.createElement("li");
+            final.innerHTML = `<strong class="accent">→ ${target}</strong>`;
+            final.style.cursor = "grab";
+            final.dataset.techName = target;
+            final.dataset.isTarget = "true";
+            chainEl.appendChild(final);
+          });
+        }
 
         // Initialize SortableJS after rendering
         initializeSortable();
 
         // Set initial validation status
         updateValidationStatus();
+      }
+
+      function getCombinedPrerequisites() {
+        const allPrereqs = new Set();
+
+        selectedTargets.forEach((target) => {
+          const prereqs = prerequisiteChain(target);
+          console.log(`Prerequisites for ${target}:`, prereqs);
+          prereqs.forEach((prereq) => allPrereqs.add(prereq));
+        });
+
+        const result = Array.from(allPrereqs);
+        console.log("Combined prerequisites:", result);
+        return result;
+      }
+
+      function updateMultiTargetUI() {
+        const pillsContainer = document.getElementById("targetPills");
+        pillsContainer.innerHTML = "";
+
+        selectedTargets.forEach((target) => {
+          const pill = document.createElement("span");
+          pill.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--accent);
+          `;
+
+          pill.innerHTML = `
+            ${target}
+            <button onclick="removeTarget('${target}')" style="
+              background: none;
+              border: none;
+              color: var(--accent);
+              cursor: pointer;
+              font-size: 14px;
+              padding: 0;
+              margin: 0;
+              line-height: 1;
+            ">×</button>
+          `;
+
+          pillsContainer.appendChild(pill);
+        });
+
+        updateMultiTargetSummary();
+      }
+
+      function updateMultiTargetSummary() {
+        const summaryEl = document.getElementById("targetSummary");
+        const prereqCount = getCombinedPrerequisites().length;
+
+        if (selectedTargets.size === 1) {
+          const target = Array.from(selectedTargets)[0];
+          summaryEl.textContent = `Prerequisites: ${prereqCount}`;
+        } else {
+          summaryEl.textContent = `Combined prerequisites: ${prereqCount} (from ${selectedTargets.size} targets)`;
+        }
+      }
+
+      function showAddTargetDropdown() {
+        const dropdown = document.getElementById("addTargetDropdown");
+        const addBtn = document.getElementById("addTargetBtn");
+
+        if (dropdown.style.display === "block") {
+          dropdown.style.display = "none";
+          return;
+        }
+
+        // Position the dropdown near the add button
+        const btnRect = addBtn.getBoundingClientRect();
+        dropdown.style.left = `${btnRect.left}px`;
+        dropdown.style.top = `${btnRect.bottom + 4}px`;
+
+        // Create dropdown content with search
+        dropdown.innerHTML = `
+          <div style="margin-bottom: 8px;">
+            <input 
+              id="targetSearchInput" 
+              type="text" 
+              placeholder="Search technologies..." 
+              style="
+                width: 100%;
+                padding: 6px 8px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 4px;
+                background: #0b1220;
+                color: var(--text);
+                font-size: 13px;
+                box-sizing: border-box;
+              "
+            />
+          </div>
+          <div id="targetOptions" style="max-height: 150px; overflow-y: auto;">
+            <!-- Technology options will be populated here -->
+          </div>
+        `;
+
+        // Get the options container
+        const optionsContainer = dropdown.querySelector("#targetOptions");
+        const searchInput = dropdown.querySelector("#targetSearchInput");
+
+        // Function to populate options based on search
+        function populateTargetOptions(searchTerm = "") {
+          optionsContainer.innerHTML = "";
+          const filteredTechs = Object.keys(advances).filter((tech) => {
+            if (selectedTargets.has(tech)) return false;
+            if (!searchTerm) return true;
+            return tech.toLowerCase().includes(searchTerm.toLowerCase());
+          });
+
+          filteredTechs.forEach((tech) => {
+            const option = document.createElement("div");
+            option.style.cssText = `
+              padding: 6px 8px;
+              cursor: pointer;
+              border-radius: 4px;
+              font-size: 13px;
+            `;
+            option.textContent = tech;
+            option.onmouseenter = () => (option.style.background = "rgba(255, 255, 255, 0.1)");
+            option.onmouseleave = () => (option.style.background = "transparent");
+            option.onclick = () => {
+              selectedTargets.add(tech);
+              updateMultiTargetUI();
+              renderMultiTargetChain();
+              dropdown.style.display = "none";
+            };
+            optionsContainer.appendChild(option);
+          });
+        }
+
+        // Initial population
+        populateTargetOptions();
+
+        // Add search functionality
+        searchInput.addEventListener("input", (e) => {
+          populateTargetOptions(e.target.value);
+        });
+
+        // Focus the search input
+        setTimeout(() => {
+          searchInput.focus();
+        }, 0);
+
+        dropdown.style.display = "block";
+
+        // Close dropdown when clicking outside
+        setTimeout(() => {
+          document.addEventListener("click", function closeDropdown(e) {
+            if (!dropdown.contains(e.target) && !addBtn.contains(e.target)) {
+              dropdown.style.display = "none";
+              document.removeEventListener("click", closeDropdown);
+            }
+          });
+        }, 0);
+      }
+
+      function removeTarget(target) {
+        selectedTargets.delete(target);
+        updateMultiTargetUI();
+        renderMultiTargetChain();
       }
 
       // Save/Load functionality
@@ -725,18 +983,19 @@
           return;
         }
 
-        const currentTech = techSelect.value;
-        if (!currentTech) {
-          alert("Please select a technology first");
+        if (selectedTargets.size === 0) {
+          alert("Please select at least one technology first");
           return;
         }
 
-        const chain = prerequisiteChain(currentTech);
+        const combinedPrereqs = getCombinedPrerequisites();
+        const customOrder = getCurrentOrder();
         const savedLists = getSavedLists();
 
         savedLists[name] = {
-          target: currentTech,
-          prerequisites: chain,
+          targets: Array.from(selectedTargets),
+          prerequisites: combinedPrereqs,
+          customOrder: customOrder.length > 0 ? customOrder : null,
           timestamp: Date.now(),
         };
 
@@ -753,43 +1012,6 @@
           saveBtn.textContent = originalText;
           saveBtn.style.background = "var(--accent)";
         }, 1500);
-      }
-
-      function loadList(name) {
-        const savedLists = getSavedLists();
-        const list = savedLists[name];
-
-        if (list && list.target) {
-          // Clear any search filter first
-          const searchInput = document.getElementById("search");
-          searchInput.value = "";
-
-          // Repopulate the dropdown with all technologies
-          populateOptions();
-
-          // Find and select the target technology
-          for (let i = 0; i < techSelect.options.length; i++) {
-            if (techSelect.options[i].value === list.target) {
-              techSelect.selectedIndex = i;
-              break;
-            }
-          }
-
-          // Render the selected technology
-          render();
-
-          // Show a brief success message
-          const loadBtn = event.target;
-          const originalText = loadBtn.textContent;
-          loadBtn.textContent = "Loaded!";
-          loadBtn.style.background = "var(--accent)";
-          loadBtn.style.color = "#000";
-          setTimeout(() => {
-            loadBtn.textContent = originalText;
-            loadBtn.style.background = "transparent";
-            loadBtn.style.color = "var(--accent)";
-          }, 1000);
-        }
       }
 
       function deleteList(name) {
@@ -836,7 +1058,7 @@
               <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 500; font-size: 13px; color: var(--text); margin-bottom: 2px;">${name}</div>
                 <div style="font-size: 11px; color: var(--muted);">
-                  ${list.target} (${list.prerequisites.length} prereqs) • ${date}
+                  ${list.targets ? list.targets.join(", ") : list.target} (${list.combinedPrereqs ? list.combinedPrereqs.length : list.prerequisites.length} prereqs) • ${date}
                 </div>
               </div>
               <button onclick="loadList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer;">Load</button>
@@ -975,6 +1197,13 @@
           }
         }
 
+        // Ensure all targets are included at the end if they're not already in the order
+        selectedTargets.forEach((target) => {
+          if (!newOrder.includes(target)) {
+            newOrder.push(target);
+          }
+        });
+
         return newOrder;
       }
 
@@ -1043,6 +1272,13 @@
           }
         }
 
+        // Ensure all targets are included at the end if they're not already in the order
+        selectedTargets.forEach((target) => {
+          if (!newOrder.includes(target)) {
+            newOrder.push(target);
+          }
+        });
+
         return newOrder;
       }
 
@@ -1073,12 +1309,13 @@
       }
 
       function updateValidationStatus() {
-        const currentTech = techSelect.value;
-        if (!currentTech) return;
+        if (selectedTargets.size === 0) return;
 
         const currentOrder = getCurrentOrder();
-        const targetPrereqs = prerequisiteChain(currentTech);
-        const missingPrereqs = targetPrereqs.filter((prereq) => !currentOrder.includes(prereq));
+
+        // Get combined prerequisites for all targets
+        const combinedPrereqs = getCombinedPrerequisites();
+        const missingPrereqs = combinedPrereqs.filter((prereq) => !currentOrder.includes(prereq));
 
         // Check for prerequisite ordering issues
         const orderingIssues = [];
@@ -1097,11 +1334,16 @@
 
         console.log("Validation debug:", {
           currentOrder,
-          targetPrereqs,
+          combinedPrereqs,
           missingPrereqs,
           orderingIssues,
-          tech: currentTech,
+          selectedTargets: Array.from(selectedTargets),
         });
+
+        // Debug: Show exactly what the ordering issues are
+        if (orderingIssues.length > 0) {
+          console.log("Ordering issues details:", orderingIssues);
+        }
 
         if (missingPrereqs.length > 0) {
           notesEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Warning: Missing prerequisites: ${missingPrereqs.join(", ")}. Drag them back into the list or use Reset Order.</span>`;
@@ -1113,32 +1355,44 @@
       }
 
       function getCurrentOrder() {
-        const listItems = document.querySelectorAll("#chain li:not(.no-drag)");
+        const chainEl = document.getElementById("chain");
+        const listItems = chainEl.children;
+
         console.log("getCurrentOrder debug:", {
           totalItems: listItems.length,
-          items: Array.from(listItems).map((item) => ({
+          items: Array.from(listItems).map((item, index) => ({
+            index,
             text: item.textContent,
             dataset: item.dataset.techName,
+            isTarget: item.dataset.isTarget,
             html: item.outerHTML,
+            className: item.className,
+            style: item.style.cssText,
           })),
         });
 
-        return Array.from(listItems)
-          .map((item) => {
+        const result = Array.from(listItems)
+          .filter((item) => !item.classList.contains("no-drag"))
+          .map((item, index) => {
             // Try to get from dataset first, fall back to strong tag extraction
             if (item.dataset.techName) {
+              console.log(`Item ${index}: Using dataset.techName = "${item.dataset.techName}"`);
               return item.dataset.techName;
             }
             // Extract from strong tag (same logic as in render function)
             const strongElement = item.querySelector("strong");
             if (strongElement) {
               const extracted = strongElement.textContent.trim();
-              console.log("Extracted tech name:", extracted, "from strong tag");
+              console.log(`Item ${index}: Extracted from strong tag = "${extracted}"`);
               return extracted;
             }
+            console.log(`Item ${index}: No tech name found`);
             return null;
           })
           .filter((name) => name && advances[name]); // Only include valid technology names
+
+        console.log("Final getCurrentOrder result:", result);
+        return result;
       }
 
       function ensurePrerequisiteIntegrity(order) {
@@ -1241,15 +1495,17 @@
           newPositions[tech] = index;
         });
 
-        // Add the target tech at the end if needed
-        const currentTech = techSelect.value;
-        if (currentTech && !order.includes(currentTech)) {
-          const final = document.createElement("li");
-          final.innerHTML = `<strong class="accent">→ ${currentTech}</strong>`;
-          final.style.cursor = "default";
-          final.classList.add("no-drag");
-          chainEl.appendChild(final);
-        }
+        // Add target techs at the end (only if they're not already in the order)
+        selectedTargets.forEach((target) => {
+          if (!order.includes(target)) {
+            const final = document.createElement("li");
+            final.innerHTML = `<strong class="accent">→ ${target}</strong>`;
+            final.style.cursor = "grab";
+            final.dataset.techName = target;
+            final.dataset.isTarget = "true";
+            chainEl.appendChild(final);
+          }
+        });
 
         // Enable animations on all items
         currentItems.forEach((item) => {
@@ -1295,9 +1551,8 @@
       }
 
       function resetToOriginalOrder() {
-        const currentTech = techSelect.value;
-        if (currentTech) {
-          render(); // This will restore the original prerequisite order
+        if (selectedTargets.size > 0) {
+          renderMultiTargetChain(); // This will restore the original prerequisite order
         }
       }
 
@@ -1311,18 +1566,17 @@
           return;
         }
 
-        const currentTech = techSelect.value;
-        if (!currentTech) {
-          alert("Please select a technology first");
+        if (selectedTargets.size === 0) {
+          alert("Please add at least one target technology first");
           return;
         }
 
-        const chain = prerequisiteChain(currentTech);
+        const targets = Array.from(selectedTargets);
+        const combinedPrereqs = getCombinedPrerequisites();
         const customOrder = getCurrentOrder();
 
         // Validate the custom order and show warning if invalid
-        const targetPrereqs = prerequisiteChain(currentTech);
-        const missingPrereqs = targetPrereqs.filter((prereq) => !customOrder.includes(prereq));
+        const missingPrereqs = combinedPrereqs.filter((prereq) => !customOrder.includes(prereq));
 
         if (missingPrereqs.length > 0) {
           const warning = `Warning: Your custom order is missing some prerequisites: ${missingPrereqs.join(", ")}. These will be automatically added when you research this path.`;
@@ -1334,8 +1588,8 @@
         const savedLists = getSavedLists();
 
         savedLists[name] = {
-          target: currentTech,
-          prerequisites: chain,
+          targets: targets,
+          combinedPrereqs: combinedPrereqs,
           customOrder: customOrder.length > 0 ? customOrder : null,
           timestamp: Date.now(),
         };
@@ -1360,24 +1614,19 @@
         const savedLists = getSavedLists();
         const list = savedLists[name];
 
-        if (list && list.target) {
-          // Clear any search filter first
-          const searchInput = document.getElementById("search");
-          searchInput.value = "";
-
-          // Repopulate the dropdown with all technologies
-          populateOptions();
-
-          // Find and select the target technology
-          for (let i = 0; i < techSelect.options.length; i++) {
-            if (techSelect.options[i].value === list.target) {
-              techSelect.selectedIndex = i;
-              break;
-            }
+        if (list && (list.target || list.targets)) {
+          // Handle both old single-target and new multi-target formats
+          if (list.targets) {
+            // Multi-target format
+            selectedTargets = new Set(list.targets);
+            updateMultiTargetUI();
+            renderMultiTargetChain();
+          } else {
+            // Single-target format (backward compatibility)
+            selectedTargets = new Set([list.target]);
+            updateMultiTargetUI();
+            renderMultiTargetChain();
           }
-
-          // Render the selected technology
-          render();
 
           // Restore custom order if it exists
           if (list.customOrder && list.customOrder.length > 0) {
@@ -1401,7 +1650,6 @@
       }
 
       // Initialise
-      populateOptions();
       render();
       renderSavedLists();
     </script>
