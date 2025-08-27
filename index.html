@@ -879,16 +879,34 @@
       function autoReorderDependents(evt) {
         if (!evt || !evt.item) return;
 
+        const movedItem = evt.item.dataset.techName;
+        if (!movedItem) return;
+
         const currentOrder = getCurrentOrder();
         if (currentOrder.length === 0) return;
 
-        console.log("Starting systematic dependency validation...");
+        // Find the old and new positions of the moved item
+        const oldIndex = parseInt(evt.oldIndex);
+        const newIndex = parseInt(evt.newIndex);
 
-        // Systematically validate and fix the entire list
-        const newOrder = validateAndFixDependencies(currentOrder);
+        console.log(`Item ${movedItem} moved from position ${oldIndex} to position ${newIndex}`);
+
+        let newOrder;
+        if (newIndex > oldIndex) {
+          // Moved further back - bring dependents behind it
+          console.log("Moving item further back - bringing dependents behind it");
+          newOrder = moveDependentsBehind(currentOrder, movedItem, newIndex);
+        } else {
+          // Moved earlier - bring dependencies before it
+          console.log("Moving item earlier - bringing dependencies before it");
+          newOrder = moveDependenciesBefore(currentOrder, movedItem, newIndex);
+        }
 
         if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
           console.log("Auto-reordering to fix dependency violations:", {
+            movedItem,
+            oldIndex,
+            newIndex,
             oldOrder: currentOrder,
             newOrder,
           });
@@ -898,76 +916,125 @@
         }
       }
 
-      function validateAndFixDependencies(order) {
-        let currentOrder = [...order];
-        let hasChanges = true;
-        let iteration = 0;
-        const maxIterations = 10; // Prevent infinite loops
+      function moveDependentsBehind(order, movedItem, newIndex) {
+        // Find all technologies that depend on the moved item (directly or indirectly)
+        const dependents = new Set();
 
-        while (hasChanges && iteration < maxIterations) {
-          hasChanges = false;
-          iteration++;
-          console.log(`Iteration ${iteration}: validating dependencies...`);
-
-          // Go through the list from start to finish
-          for (let i = 0; i < currentOrder.length; i++) {
-            const tech = currentOrder[i];
+        function findDependents(prereq) {
+          for (let i = 0; i < order.length; i++) {
+            const tech = order[i];
             const prereqs = advances[tech]?.prereqs || [];
 
-            // Check if all prerequisites come before this technology
-            const missingPrereqs = [];
-            for (const prereq of prereqs) {
-              const prereqIndex = currentOrder.indexOf(prereq);
-              if (prereqIndex > i) {
-                // Prerequisite comes after the technology that needs it
-                missingPrereqs.push(prereq);
-              }
-            }
-
-            if (missingPrereqs.length > 0) {
-              console.log(`Violation found: ${tech} needs ${missingPrereqs.join(", ")} to come first`);
-
-              // Move this technology to just after its last prerequisite
-              currentOrder = moveTechAfterLastPrereq(currentOrder, tech, missingPrereqs);
-              hasChanges = true;
-
-              // Start over from the beginning since we made changes
-              break;
+            if (prereqs.includes(prereq)) {
+              dependents.add(tech);
+              findDependents(tech); // Recursively find dependents of dependents
             }
           }
         }
 
-        if (iteration >= maxIterations) {
-          console.warn("Maximum iterations reached, dependency validation may be incomplete");
+        findDependents(movedItem);
+
+        if (dependents.size === 0) {
+          console.log(`${movedItem} has no dependents, no reordering needed`);
+          return order;
         }
 
-        return currentOrder;
+        console.log(`Found dependents of ${movedItem}:`, Array.from(dependents));
+
+        // Create new order with dependents moved after the moved item
+        const newOrder = [];
+        const dependentsArray = Array.from(dependents);
+
+        // Add items before the moved item
+        for (let i = 0; i < newIndex; i++) {
+          if (!dependents.has(order[i])) {
+            newOrder.push(order[i]);
+          }
+        }
+
+        // Add the moved item
+        newOrder.push(movedItem);
+
+        // Add all dependents in dependency order
+        const orderedDependents = orderDependentsByDependency(dependentsArray);
+        for (const dependent of orderedDependents) {
+          newOrder.push(dependent);
+        }
+
+        // Add remaining items (excluding the moved item and its dependents)
+        for (let i = newIndex + 1; i < order.length; i++) {
+          if (!dependents.has(order[i])) {
+            newOrder.push(order[i]);
+          }
+        }
+
+        return newOrder;
       }
 
-      function moveTechAfterLastPrereq(order, tech, missingPrereqs) {
-        // Find the position of the last prerequisite
-        let lastPrereqIndex = -1;
-        for (const prereq of missingPrereqs) {
+      function moveDependenciesBefore(order, movedItem, newIndex) {
+        // Find all dependencies of the moved item that come after it
+        const dependenciesAfter = [];
+        const movedItemPrereqs = advances[movedItem]?.prereqs || [];
+
+        for (const prereq of movedItemPrereqs) {
           const prereqIndex = order.indexOf(prereq);
-          if (prereqIndex > lastPrereqIndex) {
-            lastPrereqIndex = prereqIndex;
+          if (prereqIndex > newIndex) {
+            dependenciesAfter.push(prereq);
           }
         }
 
-        if (lastPrereqIndex === -1) return order; // Shouldn't happen
+        if (dependenciesAfter.length === 0) {
+          console.log(`${movedItem} has no dependencies after its new position, no reordering needed`);
+          return order;
+        }
 
-        const techIndex = order.indexOf(tech);
-        const newOrder = [...order];
+        console.log(`Found dependencies of ${movedItem} that need to be moved:`, dependenciesAfter);
 
-        // Remove the technology from its current position
-        newOrder.splice(techIndex, 1);
+        // Recursively find all dependencies that need to be moved
+        const allDependenciesToMove = new Set();
 
-        // Insert it after the last prerequisite
-        // Note: After removing the tech, the indices shift, so we need to adjust
-        const adjustedLastPrereqIndex = lastPrereqIndex > techIndex ? lastPrereqIndex - 1 : lastPrereqIndex;
-        newOrder.splice(adjustedLastPrereqIndex + 1, 0, tech);
+        function addDependencyAndItsDependencies(tech) {
+          allDependenciesToMove.add(tech);
+          const techPrereqs = advances[tech]?.prereqs || [];
 
-        console.log(`Moved ${tech} from position ${techIndex} to position ${adjustedLastPrereqIndex + 1} (after ${order[lastPrereqIndex]})`);
+          for (const prereq of techPrereqs) {
+            const prereqIndex = order.indexOf(prereq);
+            if (prereqIndex > newIndex) {
+              addDependencyAndItsDependencies(prereq);
+            }
+          }
+        }
+
+        for (const dependency of dependenciesAfter) {
+          addDependencyAndItsDependencies(dependency);
+        }
+
+        // Create new order with dependencies moved before the moved item
+        const newOrder = [];
+        const dependenciesArray = Array.from(allDependenciesToMove);
+
+        // Add items before the new position that aren't being moved
+        for (let i = 0; i < newIndex; i++) {
+          if (!allDependenciesToMove.has(order[i])) {
+            newOrder.push(order[i]);
+          }
+        }
+
+        // Add all dependencies in dependency order
+        const orderedDependencies = orderDependentsByDependency(dependenciesArray);
+        for (const dependency of orderedDependencies) {
+          newOrder.push(dependency);
+        }
+
+        // Add the moved item
+        newOrder.push(movedItem);
+
+        // Add remaining items (excluding the moved item and its dependencies)
+        for (let i = newIndex + 1; i < order.length; i++) {
+          if (!allDependenciesToMove.has(order[i])) {
+            newOrder.push(order[i]);
+          }
+        }
 
         return newOrder;
       }
