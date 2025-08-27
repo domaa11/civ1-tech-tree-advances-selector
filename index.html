@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Civilization I – Tech Prerequisite Explorer</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
       :root {
         --bg: #0f172a;
@@ -139,6 +140,25 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       }
+
+      /* SortableJS visual feedback */
+      .sortable-ghost {
+        opacity: 0.4;
+        background: rgba(56, 189, 248, 0.1) !important;
+      }
+
+      .sortable-chosen {
+        background: rgba(56, 189, 248, 0.2) !important;
+      }
+
+      .sortable-drag {
+        opacity: 0.8;
+        transform: rotate(5deg);
+      }
+
+      .no-drag {
+        cursor: default !important;
+      }
     </style>
   </head>
   <body>
@@ -181,7 +201,22 @@
           </div>
 
           <div class="chips" id="summary"></div>
-          <ol class="list" id="chain"></ol>
+
+          <!-- Reorderable List Section -->
+          <div style="margin-top: 16px">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
+              <label class="muted small">Research Order (drag to reorder)</label>
+              <button
+                id="resetOrderBtn"
+                onclick="resetToOriginalOrder()"
+                style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--muted); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer"
+              >
+                Reset Order
+              </button>
+            </div>
+            <ol class="list" id="chain" style="cursor: grab"></ol>
+          </div>
+
           <div id="notes" class="footer"></div>
         </div>
       </div>
@@ -629,32 +664,28 @@
           chainEl.appendChild(final);
         }
 
-        notesEl.innerHTML = `Tip: click a prerequisite in the list to make it the new target.`;
-
-        // Make list items navigable
+        // Set up data attributes for drag and drop
         Array.from(chainEl.querySelectorAll("li")).forEach((li) => {
-          const name = li.textContent
-            .replace(/^\d+\.\s*/, "")
-            .replace(/^→\s*/, "")
-            .replace(/\s*\(.*$/, "")
-            .trim();
-          if (advances[name]) {
-            li.style.cursor = "pointer";
-            li.onclick = () => {
-              const idx = allTechs.indexOf(name);
-              if (idx >= 0) {
-                // select the item in the dropdown if present
-                for (let i = 0; i < techSelect.options.length; i++) {
-                  if (techSelect.options[i].value === name) {
-                    techSelect.selectedIndex = i;
-                    break;
-                  }
-                }
-                render();
-              }
-            };
+          // Extract the technology name from the <strong> tag, not the entire text content
+          const strongElement = li.querySelector("strong");
+          if (strongElement) {
+            const name = strongElement.textContent.trim();
+            if (advances[name]) {
+              li.style.cursor = "grab";
+              li.dataset.techName = name;
+            }
+          } else if (li.textContent.includes("→")) {
+            // This is the target tech arrow - make it non-draggable
+            li.classList.add("no-drag");
+            li.style.cursor = "default";
           }
         });
+
+        // Initialize SortableJS after rendering
+        initializeSortable();
+
+        // Set initial validation status
+        updateValidationStatus();
       }
 
       // Save/Load functionality
@@ -820,6 +851,403 @@
           }
         });
       });
+
+      // Drag and drop functionality using SortableJS
+      let sortableInstance = null;
+
+      function initializeSortable() {
+        const chainEl = document.getElementById("chain");
+        if (sortableInstance) {
+          sortableInstance.destroy();
+        }
+
+        sortableInstance = new Sortable(chainEl, {
+          animation: 150,
+          ghostClass: "sortable-ghost",
+          chosenClass: "sortable-chosen",
+          dragClass: "sortable-drag",
+          filter: ".no-drag", // Prevent dragging the target tech arrow
+          onEnd: function (evt) {
+            // Auto-reorder dependent technologies after moving a prerequisite
+            autoReorderDependents(evt);
+            // Update validation status after reordering
+            updateValidationStatus();
+          },
+        });
+      }
+
+      function autoReorderDependents(evt) {
+        if (!evt || !evt.item) return;
+
+        const currentOrder = getCurrentOrder();
+        if (currentOrder.length === 0) return;
+
+        console.log("Starting systematic dependency validation...");
+
+        // Systematically validate and fix the entire list
+        const newOrder = validateAndFixDependencies(currentOrder);
+
+        if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
+          console.log("Auto-reordering to fix dependency violations:", {
+            oldOrder: currentOrder,
+            newOrder,
+          });
+          renderCustomOrder(newOrder);
+        } else {
+          console.log("No dependency violations found, order is valid");
+        }
+      }
+
+      function validateAndFixDependencies(order) {
+        let currentOrder = [...order];
+        let hasChanges = true;
+        let iteration = 0;
+        const maxIterations = 10; // Prevent infinite loops
+
+        while (hasChanges && iteration < maxIterations) {
+          hasChanges = false;
+          iteration++;
+          console.log(`Iteration ${iteration}: validating dependencies...`);
+
+          // Go through the list from start to finish
+          for (let i = 0; i < currentOrder.length; i++) {
+            const tech = currentOrder[i];
+            const prereqs = advances[tech]?.prereqs || [];
+
+            // Check if all prerequisites come before this technology
+            const missingPrereqs = [];
+            for (const prereq of prereqs) {
+              const prereqIndex = currentOrder.indexOf(prereq);
+              if (prereqIndex > i) {
+                // Prerequisite comes after the technology that needs it
+                missingPrereqs.push(prereq);
+              }
+            }
+
+            if (missingPrereqs.length > 0) {
+              console.log(`Violation found: ${tech} needs ${missingPrereqs.join(", ")} to come first`);
+
+              // Move this technology to just after its last prerequisite
+              currentOrder = moveTechAfterLastPrereq(currentOrder, tech, missingPrereqs);
+              hasChanges = true;
+
+              // Start over from the beginning since we made changes
+              break;
+            }
+          }
+        }
+
+        if (iteration >= maxIterations) {
+          console.warn("Maximum iterations reached, dependency validation may be incomplete");
+        }
+
+        return currentOrder;
+      }
+
+      function moveTechAfterLastPrereq(order, tech, missingPrereqs) {
+        // Find the position of the last prerequisite
+        let lastPrereqIndex = -1;
+        for (const prereq of missingPrereqs) {
+          const prereqIndex = order.indexOf(prereq);
+          if (prereqIndex > lastPrereqIndex) {
+            lastPrereqIndex = prereqIndex;
+          }
+        }
+
+        if (lastPrereqIndex === -1) return order; // Shouldn't happen
+
+        const techIndex = order.indexOf(tech);
+        const newOrder = [...order];
+
+        // Remove the technology from its current position
+        newOrder.splice(techIndex, 1);
+
+        // Insert it after the last prerequisite
+        // Note: After removing the tech, the indices shift, so we need to adjust
+        const adjustedLastPrereqIndex = lastPrereqIndex > techIndex ? lastPrereqIndex - 1 : lastPrereqIndex;
+        newOrder.splice(adjustedLastPrereqIndex + 1, 0, tech);
+
+        console.log(`Moved ${tech} from position ${techIndex} to position ${adjustedLastPrereqIndex + 1} (after ${order[lastPrereqIndex]})`);
+
+        return newOrder;
+      }
+
+      function orderDependentsByDependency(dependents) {
+        // Sort dependents so that prerequisites come before their dependents
+        const sorted = [];
+        const added = new Set();
+
+        function addWithPrereqs(tech) {
+          if (added.has(tech)) return;
+
+          const prereqs = advances[tech]?.prereqs || [];
+          for (const prereq of prereqs) {
+            if (dependents.includes(prereq)) {
+              addWithPrereqs(prereq);
+            }
+          }
+
+          sorted.push(tech);
+          added.add(tech);
+        }
+
+        for (const tech of dependents) {
+          addWithPrereqs(tech);
+        }
+
+        return sorted;
+      }
+
+      function updateValidationStatus() {
+        const currentTech = techSelect.value;
+        if (!currentTech) return;
+
+        const currentOrder = getCurrentOrder();
+        const targetPrereqs = prerequisiteChain(currentTech);
+        const missingPrereqs = targetPrereqs.filter((prereq) => !currentOrder.includes(prereq));
+
+        // Check for prerequisite ordering issues
+        const orderingIssues = [];
+        for (let i = 0; i < currentOrder.length; i++) {
+          const tech = currentOrder[i];
+          const prereqs = advances[tech]?.prereqs || [];
+
+          for (const prereq of prereqs) {
+            const prereqIndex = currentOrder.indexOf(prereq);
+            if (prereqIndex > i) {
+              // Prerequisite comes after the technology that needs it
+              orderingIssues.push(`${tech} requires ${prereq} to come first`);
+            }
+          }
+        }
+
+        console.log("Validation debug:", {
+          currentOrder,
+          targetPrereqs,
+          missingPrereqs,
+          orderingIssues,
+          tech: currentTech,
+        });
+
+        if (missingPrereqs.length > 0) {
+          notesEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Warning: Missing prerequisites: ${missingPrereqs.join(", ")}. Drag them back into the list or use Reset Order.</span>`;
+        } else if (orderingIssues.length > 0) {
+          notesEl.innerHTML = `<span style="color: #fbbf24;">⚠️ Warning: Prerequisite order issues: ${orderingIssues.join(", ")}. Reorder technologies or use Reset Order.</span>`;
+        } else {
+          notesEl.innerHTML = `✅ Valid research path.`;
+        }
+      }
+
+      function getCurrentOrder() {
+        const listItems = document.querySelectorAll("#chain li:not(.no-drag)");
+        console.log("getCurrentOrder debug:", {
+          totalItems: listItems.length,
+          items: Array.from(listItems).map((item) => ({
+            text: item.textContent,
+            dataset: item.dataset.techName,
+            html: item.outerHTML,
+          })),
+        });
+
+        return Array.from(listItems)
+          .map((item) => {
+            // Try to get from dataset first, fall back to strong tag extraction
+            if (item.dataset.techName) {
+              return item.dataset.techName;
+            }
+            // Extract from strong tag (same logic as in render function)
+            const strongElement = item.querySelector("strong");
+            if (strongElement) {
+              const extracted = strongElement.textContent.trim();
+              console.log("Extracted tech name:", extracted, "from strong tag");
+              return extracted;
+            }
+            return null;
+          })
+          .filter((name) => name && advances[name]); // Only include valid technology names
+      }
+
+      function ensurePrerequisiteIntegrity(order) {
+        const currentTech = techSelect.value;
+        if (!currentTech) return order;
+
+        // Get all prerequisites needed for the target technology
+        const targetPrereqs = prerequisiteChain(currentTech);
+        const targetPrereqsSet = new Set(targetPrereqs);
+
+        const validatedOrder = [];
+        const added = new Set();
+
+        // First, ensure all target prerequisites are included
+        for (const prereq of targetPrereqs) {
+          if (!added.has(prereq)) {
+            validatedOrder.push(prereq);
+            added.add(prereq);
+          }
+        }
+
+        // Then add any additional technologies from the custom order
+        for (const tech of order) {
+          if (!added.has(tech)) {
+            validatedOrder.push(tech);
+            added.add(tech);
+          }
+        }
+
+        return validatedOrder;
+      }
+
+      function renderCustomOrder(order) {
+        const chainEl = document.getElementById("chain");
+        chainEl.innerHTML = "";
+
+        order.forEach((tech, index) => {
+          const li = document.createElement("li");
+          li.dataset.techName = tech;
+          li.style.cursor = "grab";
+
+          // Add allows information with color coding
+          const techAllows = getTechnologyAllows(tech);
+          let allowsHtml = "";
+          let allowsChips = [];
+
+          Object.entries(techAllows).forEach(([category, items]) => {
+            if (items.length > 0) {
+              items.forEach((item) => {
+                const cssClass = category === "units" ? "unit" : category === "buildings" ? "building" : category === "wonders" ? "wonder" : "other";
+                allowsChips.push(`<span class="allows-chip allows-${cssClass}">${item}</span>`);
+              });
+            }
+          });
+
+          if (allowsChips.length > 0) {
+            allowsHtml = allowsChips.join("");
+          }
+
+          li.innerHTML = `<strong>${tech}</strong>${allowsHtml}`;
+
+          chainEl.appendChild(li);
+        });
+
+        // Add the target tech at the end
+        const currentTech = techSelect.value;
+        if (currentTech && !order.includes(currentTech)) {
+          const final = document.createElement("li");
+          final.innerHTML = `<strong class="accent">→ ${currentTech}</strong>`;
+          final.style.cursor = "default";
+          final.classList.add("no-drag");
+          chainEl.appendChild(final);
+        }
+
+        // Re-initialize SortableJS
+        initializeSortable();
+      }
+
+      function resetToOriginalOrder() {
+        const currentTech = techSelect.value;
+        if (currentTech) {
+          render(); // This will restore the original prerequisite order
+        }
+      }
+
+      // Update the save function to include custom order
+      function saveCurrentListFromTop() {
+        const nameInput = document.getElementById("saveNameTop");
+        const name = nameInput.value.trim();
+
+        if (!name) {
+          alert("Please enter a name for your list");
+          return;
+        }
+
+        const currentTech = techSelect.value;
+        if (!currentTech) {
+          alert("Please select a technology first");
+          return;
+        }
+
+        const chain = prerequisiteChain(currentTech);
+        const customOrder = getCurrentOrder();
+
+        // Validate the custom order and show warning if invalid
+        const targetPrereqs = prerequisiteChain(currentTech);
+        const missingPrereqs = targetPrereqs.filter((prereq) => !customOrder.includes(prereq));
+
+        if (missingPrereqs.length > 0) {
+          const warning = `Warning: Your custom order is missing some prerequisites: ${missingPrereqs.join(", ")}. These will be automatically added when you research this path.`;
+          if (!confirm(warning + "\n\nDo you want to save anyway?")) {
+            return;
+          }
+        }
+
+        const savedLists = getSavedLists();
+
+        savedLists[name] = {
+          target: currentTech,
+          prerequisites: chain,
+          customOrder: customOrder.length > 0 ? customOrder : null,
+          timestamp: Date.now(),
+        };
+
+        saveLists(savedLists);
+        nameInput.value = "";
+        renderSavedLists();
+
+        // Show success message
+        const saveBtn = document.getElementById("saveBtnTop");
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Saved!";
+        saveBtn.style.background = "#34d399";
+        setTimeout(() => {
+          saveBtn.textContent = originalText;
+          saveBtn.style.background = "var(--accent)";
+        }, 1500);
+      }
+
+      // Update the load function to restore custom order
+      function loadList(name) {
+        const savedLists = getSavedLists();
+        const list = savedLists[name];
+
+        if (list && list.target) {
+          // Clear any search filter first
+          const searchInput = document.getElementById("search");
+          searchInput.value = "";
+
+          // Repopulate the dropdown with all technologies
+          populateOptions();
+
+          // Find and select the target technology
+          for (let i = 0; i < techSelect.options.length; i++) {
+            if (techSelect.options[i].value === list.target) {
+              techSelect.selectedIndex = i;
+              break;
+            }
+          }
+
+          // Render the selected technology
+          render();
+
+          // Restore custom order if it exists
+          if (list.customOrder && list.customOrder.length > 0) {
+            setTimeout(() => {
+              renderCustomOrder(list.customOrder);
+            }, 100);
+          }
+
+          // Show a brief success message
+          const loadBtn = event.target;
+          const originalText = loadBtn.textContent;
+          loadBtn.textContent = "Loaded!";
+          loadBtn.style.background = "var(--accent)";
+          loadBtn.style.color = "#000";
+          setTimeout(() => {
+            loadBtn.textContent = originalText;
+            loadBtn.style.background = "transparent";
+            loadBtn.style.color = "var(--accent)";
+          }, 1000);
+        }
+      }
 
       // Initialise
       populateOptions();
