@@ -1446,6 +1446,11 @@
             li.dataset.techName = tech;
             li.style.cursor = "grab";
 
+            // Check if this is a target technology
+            const isTarget = selectedTargets.has(tech);
+            const displayName = isTarget ? `→ ${tech}` : tech;
+            const className = isTarget ? "accent" : "";
+
             // Add allows information with color coding
             const techAllows = getTechnologyAllows(tech);
             let allowsHtml = "";
@@ -1464,7 +1469,13 @@
               allowsHtml = allowsChips.join("");
             }
 
-            li.innerHTML = `<strong>${tech}</strong>${allowsHtml}`;
+            li.innerHTML = `<strong class="${className}">${displayName}</strong>${allowsHtml}`;
+
+            // Set target attributes if this is a target
+            if (isTarget) {
+              li.dataset.isTarget = "true";
+            }
+
             chainEl.appendChild(li);
           });
 
@@ -1506,6 +1517,20 @@
         const newPositions = {};
         order.forEach((tech, index) => {
           newPositions[tech] = index;
+        });
+
+        // Update styling for existing items that are targets
+        currentItems.forEach((item) => {
+          const techName = item.dataset.techName;
+          if (selectedTargets.has(techName)) {
+            // Update the display to show it's a target
+            const strongElement = item.querySelector("strong");
+            if (strongElement) {
+              strongElement.textContent = `→ ${techName}`;
+              strongElement.className = "accent";
+            }
+            item.dataset.isTarget = "true";
+          }
         });
 
         // Add target techs at the end (only if they're not already in the order)
