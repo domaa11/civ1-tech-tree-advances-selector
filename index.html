@@ -835,6 +835,11 @@
         });
 
         updateMultiTargetSummary();
+
+        // Update validation status after UI changes
+        setTimeout(() => {
+          updateValidationStatus();
+        }, 0);
       }
 
       function updateMultiTargetSummary() {
@@ -1099,8 +1104,6 @@
           onEnd: function (evt) {
             // Auto-reorder dependent technologies after moving a prerequisite
             autoReorderDependents(evt);
-            // Update validation status after reordering
-            updateValidationStatus();
           },
         });
       }
@@ -1140,8 +1143,14 @@
             newOrder,
           });
           renderCustomOrder(newOrder, true); // Animate the reordering
+          // Update validation status after reordering animation completes
+          setTimeout(() => {
+            updateValidationStatus();
+          }, 300); // Wait for animation to complete
         } else {
           console.log("No dependency violations found, order is valid");
+          // Update validation status immediately if no reordering was needed
+          updateValidationStatus();
         }
       }
 
@@ -1459,18 +1468,22 @@
             chainEl.appendChild(li);
           });
 
-          // Add the target tech at the end
-          const currentTech = techSelect.value;
-          if (currentTech && !order.includes(currentTech)) {
-            const final = document.createElement("li");
-            final.innerHTML = `<strong class="accent">→ ${currentTech}</strong>`;
-            final.style.cursor = "default";
-            final.classList.add("no-drag");
-            chainEl.appendChild(final);
-          }
+          // Add target techs at the end (only if they're not already in the order)
+          selectedTargets.forEach((target) => {
+            if (!order.includes(target)) {
+              const final = document.createElement("li");
+              final.innerHTML = `<strong class="accent">→ ${target}</strong>`;
+              final.style.cursor = "grab";
+              final.dataset.techName = target;
+              final.dataset.isTarget = "true";
+              chainEl.appendChild(final);
+            }
+          });
 
           // Re-initialize SortableJS
           initializeSortable();
+          // Update validation status after rendering
+          updateValidationStatus();
           return;
         }
 
@@ -1547,6 +1560,8 @@
         // Re-initialize SortableJS after all animations complete
         setTimeout(() => {
           initializeSortable();
+          // Update validation status after reordering is complete
+          updateValidationStatus();
         }, 600);
       }
 
