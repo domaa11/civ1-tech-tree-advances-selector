@@ -4,7 +4,7 @@ An interactive web tool for exploring the technology prerequisites in Sid Meier'
 
 ## 🎮 Live Demo
 
-**[Try it out here!](https://[your-username].github.io/civ1-tech-tree-advances-selector/)**
+**[Try it out here!](https://domaa11.github.io/civ1-tech-tree-advances-selector/)**
 
 ## ✨ Features
 
