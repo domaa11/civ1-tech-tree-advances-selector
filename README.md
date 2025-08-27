@@ -1,6 +1,6 @@
-# Civilization I Tech Tree Explorer
+# Civilization I Tech Planner
 
-An interactive web tool for exploring the technology prerequisites in Sid Meier's Civilization I. Discover what technologies you need to research in order to unlock any specific advancement.
+A modern, interactive web tool for planning technology research paths in Sid Meier's Civilization I. Plan your research strategy by selecting multiple target technologies and optimizing the research order.
 
 ## 🎮 Live Demo
 
@@ -8,33 +8,67 @@ An interactive web tool for exploring the technology prerequisites in Sid Meier'
 
 ## ✨ Features
 
-- **Interactive Tech Tree**: Select any technology to see its complete prerequisite chain
-- **Smart Search**: Filter technologies by name to quickly find what you're looking for
-- **Visual Categories**: Color-coded display showing what each technology unlocks:
-  - 🟡 **Units** (Military units)
-  - 🟢 **Buildings** (City improvements)
+- **Multi-Target Planning**: Select multiple technologies as research targets
+- **Smart Prerequisite Management**: Automatically combines prerequisites from all targets
+- **Drag & Drop Reordering**: Optimize your research order with intuitive drag-and-drop
+- **Automatic Dependency Reordering**: Smart algorithms maintain prerequisite integrity
+- **Visual Technology Benefits**: Color-coded display showing what each technology unlocks:
+  - 🟢 **Units** (Military units)
+  - 🔵 **Buildings** (City improvements)
   - 🟣 **Wonders** (World wonders)
-  - 🔴 **Other** (Governments, terrain improvements, etc.)
-- **Click Navigation**: Click on any prerequisite to make it your new target
-- **Complete Data**: All 67 technologies from Civilization I with accurate prerequisite relationships
+  - 🟡 **Other** (Governments, terrain improvements, etc.)
+- **Search & Filter**: Find technologies quickly with real-time search
+- **Save & Load Plans**: Save your optimized research paths for later reference
+- **Validation System**: Real-time feedback on prerequisite completeness and order
+- **Modern UI**: Clean, intuitive interface with smooth animations
 
 ## 🎯 How to Use
 
-1. **Select a Technology**: Choose from the dropdown list or use the search filter
-2. **View Prerequisites**: See the complete chain of technologies you need to research (in order)
-3. **Explore Further**: Click on any prerequisite to explore its requirements
-4. **Understand Benefits**: See what each technology unlocks with color-coded indicators
+1. **Add Target Technologies**: Click "Add Technology Target" to select technologies you want to research
+2. **Review Combined Prerequisites**: See all prerequisites needed for your selected targets
+3. **Optimize Research Order**: Drag technologies to reorder them for optimal research efficiency
+4. **Save Your Plan**: Save your optimized research path with a custom name
+5. **Load Previous Plans**: Access your saved plans anytime
+
+## 🚀 Key Features
+
+### **Smart Multi-Target Support**
+
+- Select multiple target technologies simultaneously
+- Automatic prerequisite deduplication and combination
+- Visual highlighting of target technologies in the research list
+
+### **Intelligent Reordering**
+
+- Drag-and-drop interface for easy reordering
+- Automatic dependency validation
+- Smart algorithms that maintain prerequisite integrity
+- Two-way reordering: move prerequisites forward or dependents backward
+
+### **Advanced Validation**
+
+- Real-time prerequisite checking
+- Order validation to ensure dependencies come first
+- Clear visual feedback with color-coded status messages
+
+### **Persistent Storage**
+
+- Save multiple research plans
+- Local storage for persistence across browser sessions
+- Easy plan management with rename and delete options
 
 ## 🛠️ Technical Details
 
-- **Pure HTML/CSS/JavaScript**: No external dependencies required
-- **Responsive Design**: Works on desktop and mobile devices
-- **Data Source**: Based on official Civilization I game data
-- **Open Source**: Feel free to contribute improvements or report issues
+- **Modern Web Technologies**: HTML5, CSS3, JavaScript ES6+
+- **No External Dependencies**: Pure vanilla JavaScript (except SortableJS for drag-and-drop)
+- **Responsive Design**: Optimized for desktop and mobile devices
+- **Progressive Enhancement**: Works without JavaScript for basic functionality
+- **Data Source**: Complete Civilization I technology tree with accurate prerequisites
+- **Open Source**: MIT licensed for community contributions
 
 ## 📊 Data Structure
 
-The technology data is stored in a simple JavaScript object:
+The technology data uses a comprehensive structure:
 
 ```javascript
 {
@@ -55,17 +89,27 @@ The technology data is stored in a simple JavaScript object:
 To run this locally:
 
 1. Clone the repository
-2. Open `civ-tech-selector.html` in your web browser
+2. Open `index.html` in your web browser
 3. That's it! No build process or dependencies required.
+
+## 🎨 UI/UX Highlights
+
+- **Card-based Design**: Clean, modern interface with distinct functional areas
+- **Visual Hierarchy**: Clear information architecture with logical flow
+- **Smooth Animations**: Subtle transitions and hover effects
+- **Accessibility**: High contrast, readable typography, keyboard navigation
+- **Mobile Responsive**: Optimized layout for all screen sizes
 
 ## 🤝 Contributing
 
 Contributions are welcome! Some ideas:
 
-- Add missing technologies or prerequisites
-- Improve the UI/UX
-- Add new features like tech tree visualization
-- Fix any data inaccuracies
+- Add new visualization features (tech tree graphs, timeline views)
+- Improve the reordering algorithms
+- Add export/import functionality for research plans
+- Enhance the validation system
+- Add support for different Civilization versions
+- Improve mobile experience
 
 ## 📝 License
 
