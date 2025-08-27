@@ -153,9 +153,33 @@
           <div style="height: 10px"></div>
           <label for="tech" class="muted small">Choose a technology</label>
           <select id="tech" size="12" onchange="render()"></select>
+
+          <!-- Saved Lists Section -->
+          <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08)">
+            <div id="savedLists" style="margin-top: 12px">
+              <!-- Saved lists will appear here -->
+            </div>
+          </div>
         </div>
 
         <div class="panel">
+          <!-- Save Button at Top -->
+          <div style="display: flex; gap: 8px; margin-bottom: 16px; padding: 12px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px">
+            <input
+              id="saveNameTop"
+              type="text"
+              placeholder="Save this list as..."
+              style="flex: 1; padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.15); background: #0b1220; color: var(--text); font-size: 13px"
+            />
+            <button
+              id="saveBtnTop"
+              onclick="saveCurrentListFromTop()"
+              style="padding: 8px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #000; font-weight: 500; cursor: pointer; font-size: 13px"
+            >
+              Save List
+            </button>
+          </div>
+
           <div class="chips" id="summary"></div>
           <ol class="list" id="chain"></ol>
           <div id="notes" class="footer"></div>
@@ -486,20 +510,29 @@
 
       function populateOptions(list = allTechs) {
         techSelect.innerHTML = "";
+
+        // Add default option
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "Please choose a technology...";
+        defaultOpt.disabled = true;
+        defaultOpt.selected = true;
+        techSelect.appendChild(defaultOpt);
+
+        // Add technology options
         list.forEach((t) => {
           const opt = document.createElement("option");
           opt.value = t;
           opt.textContent = t;
           techSelect.appendChild(opt);
         });
-        if (techSelect.options.length) techSelect.selectedIndex = 0;
       }
 
       function filterOptions() {
         const q = searchInput.value.trim().toLowerCase();
         const filtered = q ? allTechs.filter((t) => t.toLowerCase().includes(q)) : allTechs;
         populateOptions(filtered);
-        render();
+        // Don't auto-render when filtering, let user select
       }
 
       // Depth-first search to gather prerequisites; returns in dependency order (prereqs first)
@@ -521,7 +554,13 @@
 
       function render() {
         const tech = techSelect.value;
-        if (!tech) return;
+        if (!tech) {
+          // Clear the display when no technology is selected
+          summaryEl.innerHTML = "";
+          chainEl.innerHTML = "";
+          notesEl.innerHTML = "";
+          return;
+        }
         const chain = prerequisiteChain(tech);
 
         // Summary chips
@@ -618,9 +657,174 @@
         });
       }
 
+      // Save/Load functionality
+      const STORAGE_KEY = "civ1_tech_lists";
+
+      function getSavedLists() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+          console.error("Error loading saved lists:", e);
+          return {};
+        }
+      }
+
+      function saveLists(lists) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+        } catch (e) {
+          console.error("Error saving lists:", e);
+        }
+      }
+
+      function saveCurrentListFromTop() {
+        const nameInput = document.getElementById("saveNameTop");
+        const name = nameInput.value.trim();
+
+        if (!name) {
+          alert("Please enter a name for your list");
+          return;
+        }
+
+        const currentTech = techSelect.value;
+        if (!currentTech) {
+          alert("Please select a technology first");
+          return;
+        }
+
+        const chain = prerequisiteChain(currentTech);
+        const savedLists = getSavedLists();
+
+        savedLists[name] = {
+          target: currentTech,
+          prerequisites: chain,
+          timestamp: Date.now(),
+        };
+
+        saveLists(savedLists);
+        nameInput.value = "";
+        renderSavedLists();
+
+        // Show success message
+        const saveBtn = document.getElementById("saveBtnTop");
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "Saved!";
+        saveBtn.style.background = "#34d399";
+        setTimeout(() => {
+          saveBtn.textContent = originalText;
+          saveBtn.style.background = "var(--accent)";
+        }, 1500);
+      }
+
+      function loadList(name) {
+        const savedLists = getSavedLists();
+        const list = savedLists[name];
+
+        if (list && list.target) {
+          // Clear any search filter first
+          const searchInput = document.getElementById("search");
+          searchInput.value = "";
+
+          // Repopulate the dropdown with all technologies
+          populateOptions();
+
+          // Find and select the target technology
+          for (let i = 0; i < techSelect.options.length; i++) {
+            if (techSelect.options[i].value === list.target) {
+              techSelect.selectedIndex = i;
+              break;
+            }
+          }
+
+          // Render the selected technology
+          render();
+
+          // Show a brief success message
+          const loadBtn = event.target;
+          const originalText = loadBtn.textContent;
+          loadBtn.textContent = "Loaded!";
+          loadBtn.style.background = "var(--accent)";
+          loadBtn.style.color = "#000";
+          setTimeout(() => {
+            loadBtn.textContent = originalText;
+            loadBtn.style.background = "transparent";
+            loadBtn.style.color = "var(--accent)";
+          }, 1000);
+        }
+      }
+
+      function deleteList(name) {
+        if (confirm(`Delete "${name}"?`)) {
+          const savedLists = getSavedLists();
+          delete savedLists[name];
+          saveLists(savedLists);
+          renderSavedLists();
+        }
+      }
+
+      function renameList(oldName) {
+        const newName = prompt("Enter new name:", oldName);
+        if (newName && newName.trim() && newName !== oldName) {
+          const savedLists = getSavedLists();
+          if (savedLists[newName]) {
+            alert("A list with that name already exists");
+            return;
+          }
+
+          savedLists[newName] = savedLists[oldName];
+          delete savedLists[oldName];
+          saveLists(savedLists);
+          renderSavedLists();
+        }
+      }
+
+      function renderSavedLists() {
+        const container = document.getElementById("savedLists");
+        const savedLists = getSavedLists();
+        const listNames = Object.keys(savedLists).sort();
+
+        if (listNames.length === 0) {
+          container.innerHTML = '<div style="color: var(--muted); font-size: 12px; text-align: center; padding: 12px;">No saved lists yet</div>';
+          return;
+        }
+
+        container.innerHTML = listNames
+          .map((name) => {
+            const list = savedLists[name];
+            const date = new Date(list.timestamp).toLocaleDateString();
+            return `
+            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; margin-bottom: 8px;">
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 500; font-size: 13px; color: var(--text); margin-bottom: 2px;">${name}</div>
+                <div style="font-size: 11px; color: var(--muted);">
+                  ${list.target} (${list.prerequisites.length} prereqs) • ${date}
+                </div>
+              </div>
+              <button onclick="loadList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer;">Load</button>
+              <button onclick="renameList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--muted); background: transparent; color: var(--muted); font-size: 11px; cursor: pointer;">Rename</button>
+              <button onclick="deleteList('${name}')" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #f87171; background: transparent; color: #f87171; font-size: 11px; cursor: pointer;">Delete</button>
+            </div>
+          `;
+          })
+          .join("");
+      }
+
+      // Add enter key support for save input
+      document.addEventListener("DOMContentLoaded", function () {
+        const saveNameTopInput = document.getElementById("saveNameTop");
+
+        saveNameTopInput.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            saveCurrentListFromTop();
+          }
+        });
+      });
+
       // Initialise
       populateOptions();
       render();
+      renderSavedLists();
     </script>
   </body>
 </html>
