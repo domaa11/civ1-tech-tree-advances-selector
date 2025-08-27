@@ -201,7 +201,7 @@
         },
         "Ceremonial Burial": {
           prereqs: [],
-          allows: {},
+          allows: { buildings: ["Temple"] },
         },
         Chemistry: {
           prereqs: ["University", "Medicine"],
@@ -213,15 +213,15 @@
         },
         "Code of Laws": {
           prereqs: ["Alphabet"],
-          allows: {},
+          allows: { buildings: ["Courthouse"] },
         },
         Combustion: {
           prereqs: ["Refining", "Explosives"],
-          allows: { units: ["Frigate"] },
+          allows: { units: ["Cruiser"] },
         },
         Communism: {
           prereqs: ["Philosophy", "Industrialization"],
-          allows: { other: ["Communism"] },
+          allows: { other: ["Communism"], wonders: ["United Nations"] },
         },
         Computers: {
           prereqs: ["Mathematics", "Electronics"],
@@ -229,31 +229,31 @@
         },
         Conscription: {
           prereqs: ["The Republic", "Explosives"],
-          allows: {},
+          allows: { units: ["Riflemen"] },
         },
         Construction: {
           prereqs: ["Masonry", "Currency"],
-          allows: { buildings: ["Aqueduct"] },
+          allows: { other: ["Fortress"], buildings: ["Aqueduct", "Colosseum"] },
         },
         "The Corporation": {
           prereqs: ["Banking", "Industrialization"],
-          allows: { buildings: ["Mfg. Plant"] },
+          allows: {},
         },
         Currency: {
           prereqs: ["Bronze Working"],
-          allows: {},
+          allows: { buildings: ["Marketplace"] },
         },
         Democracy: {
           prereqs: ["Philosophy", "Literacy"],
-          allows: { other: ["Democracy"], buildings: ["Fortress"], wonders: ["United Nations", "Women's Suffrage"] },
+          allows: { other: ["Democracy"] },
         },
         Electricity: {
           prereqs: ["Magnetism", "Metallurgy"],
-          allows: { units: ["Cruiser"], buildings: ["Power Plant"] },
+          allows: {},
         },
         Electronics: {
-          prereqs: ["Electricity"],
-          allows: { units: ["Submarine"], buildings: ["Hydro Plant"] },
+          prereqs: ["Electricity", "Engineering"],
+          allows: { buildings: ["Hydro Plant"], wonders: ["Hoover Dam"] },
         },
         Engineering: {
           prereqs: ["The Wheel", "Construction"],
@@ -261,7 +261,7 @@
         },
         Explosives: {
           prereqs: ["Gunpowder", "Chemistry"],
-          allows: { units: ["Cannon"] },
+          allows: {},
         },
         Feudalism: {
           prereqs: ["Masonry", "Monarchy"],
@@ -281,7 +281,7 @@
         },
         "Genetic Engineering": {
           prereqs: ["Medicine", "The Corporation"],
-          allows: {},
+          allows: { wonders: ["Cure for Cancer"] },
         },
         Gunpowder: {
           prereqs: ["Invention", "Iron Working"],
@@ -293,7 +293,7 @@
         },
         Industrialization: {
           prereqs: ["Railroad", "Banking"],
-          allows: { buildings: ["Factory"], wonders: ["Hoover Dam"] },
+          allows: { units: ["Transport"], buildings: ["Factory"], wonders: ["Women's Suffrage"] },
         },
         Invention: {
           prereqs: ["Engineering", "Literacy"],
@@ -301,47 +301,47 @@
         },
         "Iron Working": {
           prereqs: ["Bronze Working"],
-          allows: { units: ["Legion"], wonders: ["Great Wall"] },
+          allows: { units: ["Legion"] },
         },
         "Labor Union": {
           prereqs: ["Mass Production", "Communism"],
-          allows: {},
+          allows: { units: ["Mech. Inf."] },
         },
         Literacy: {
           prereqs: ["Writing", "Code of Laws"],
-          allows: {},
+          allows: { wonders: ["Great Library"] },
         },
         Magnetism: {
           prereqs: ["Navigation", "Physics"],
-          allows: {},
+          allows: { units: ["Frigate"] },
         },
         Mapmaking: {
           prereqs: ["Alphabet"],
-          allows: { wonders: ["Lighthouse"], other: ["Sail"] },
+          allows: { wonders: ["Lighthouse"], units: ["Trireme"] },
         },
         Masonry: {
           prereqs: [],
-          allows: { buildings: ["City Walls"], wonders: ["Pyramids"], other: ["Mines"] },
+          allows: { buildings: ["City Walls", "Palace"], wonders: ["Pyramids", "Great Wall"] },
         },
         "Mass Production": {
           prereqs: ["Automobile", "The Corporation"],
-          allows: { units: ["Artillery"], buildings: ["Mass Transit"] },
+          allows: { units: ["Submarine"], buildings: ["Mass Transit"] },
         },
         Mathematics: {
           prereqs: ["Alphabet", "Masonry"],
-          allows: {},
+          allows: { units: ["Catapult"] },
         },
         Medicine: {
           prereqs: ["Philosophy", "Trade"],
-          allows: { wonders: ["Cure for Cancer"] },
+          allows: { wonders: ["Shakespeare's Theatre"] },
         },
         Metallurgy: {
           prereqs: ["Gunpowder", "University"],
-          allows: {},
+          allows: { units: ["Cannon"] },
         },
         Monarchy: {
           prereqs: ["Ceremonial Burial", "Code of Laws"],
-          allows: { other: ["Monarchy"], buildings: ["Temple"] },
+          allows: { other: ["Monarchy"] },
         },
         Mysticism: {
           prereqs: ["Ceremonial Burial"],
@@ -349,7 +349,7 @@
         },
         Navigation: {
           prereqs: ["Mapmaking", "Astronomy"],
-          allows: { wonders: ["Magellan's Expedition"] },
+          allows: { wonders: ["Magellan's Expedition"], units: ["Sail"] },
         },
         "Nuclear Fission": {
           prereqs: ["Mass Production", "Atomic Theory"],
@@ -357,7 +357,7 @@
         },
         "Nuclear Power": {
           prereqs: ["Nuclear Fission", "Electronics"],
-          allows: { units: ["Nuclear unit"] },
+          allows: { buildings: ["Nuclear Plant"] },
         },
         Philosophy: {
           prereqs: ["Mysticism", "Literacy"],
@@ -369,15 +369,15 @@
         },
         Plastics: {
           prereqs: ["Refining", "Space Flight"],
-          allows: { units: ["Transport"] },
+          allows: { wonders: ["SS Component"] },
         },
         Pottery: {
           prereqs: [],
-          allows: { buildings: ["Granary"], wonders: ["Hanging Gardens"], other: ["Irrigation"] },
+          allows: { buildings: ["Granary"], wonders: ["Hanging Gardens"] },
         },
         Railroad: {
           prereqs: ["Steam Engine", "Bridge Building"],
-          allows: { other: ["RailRoad on road squares"] },
+          allows: { other: ["RailRoad on road squares"], wonders: ["Darwin's Voyage"] },
         },
         Recycling: {
           prereqs: ["Mass Production", "Democracy"],
@@ -385,27 +385,27 @@
         },
         Refining: {
           prereqs: ["Chemistry", "The Corporation"],
-          allows: {},
+          allows: { buildings: ["Power Plant"] },
         },
         Religion: {
           prereqs: ["Philosophy", "Writing"],
-          allows: { wonders: ["Michelangelo's Chapel"] },
+          allows: { wonders: ["Michelangelo's Chapel", "J.S. Bach's Cathedral"], buildings: ["Cathedral"] },
         },
         "The Republic": {
           prereqs: ["Code of Laws", "Literacy"],
-          allows: { other: ["The Republic"], buildings: ["Courthouse"] },
+          allows: { other: ["Republic"] },
         },
         Robotics: {
           prereqs: ["Plastics", "Computers"],
-          allows: {},
+          allows: { units: ["Artillery"], buildings: ["Mfg. Plant"], wonders: ["SS Module"] },
         },
         Rocketry: {
           prereqs: ["Advanced Flight", "Electronics"],
-          allows: {},
+          allows: { units: ["Nuclear unit (with Manhattan Project)"] },
         },
         "Space Flight": {
           prereqs: ["Computers", "Rocketry"],
-          allows: { units: ["Mech. Inf."], wonders: ["Apollo Program"], other: ["SS Component", "SS Module", "SS Structural"] },
+          allows: { wonders: ["Apollo Program", "SS Structural"] },
         },
         "Steam Engine": {
           prereqs: ["Physics", "Invention"],
@@ -413,31 +413,31 @@
         },
         Steel: {
           prereqs: ["Metallurgy", "Industrialization"],
-          allows: { units: ["Riflemen"] },
+          allows: { units: ["Battleship"] },
         },
         Superconductor: {
           prereqs: ["Plastics", "Mass Production"],
-          allows: { wonders: ["SDI Defense"] },
+          allows: { buildings: ["SDI Defense"] },
         },
         "Theory of Gravity": {
           prereqs: ["Astronomy", "University"],
-          allows: { wonders: ["Darwin's Voyage"] },
+          allows: { wonders: ["Isaac Newton's College"] },
         },
         Trade: {
           prereqs: ["Currency", "Code of Laws"],
-          allows: { buildings: ["Marketplace"] },
+          allows: { units: ["Caravan"] },
         },
         University: {
           prereqs: ["Mathematics", "Philosophy"],
-          allows: { buildings: ["University"], wonders: ["Isaac Newton's College"] },
+          allows: { buildings: ["University"] },
         },
         "The Wheel": {
           prereqs: [],
-          allows: { units: ["Chariot"], other: ["Road on land squares"] },
+          allows: { units: ["Chariot"] },
         },
         Writing: {
           prereqs: ["Alphabet"],
-          allows: { buildings: ["Library"], units: ["Diplomat"], wonders: ["Great Library"] },
+          allows: { buildings: ["Library"], units: ["Diplomat"] },
         },
       };
 
