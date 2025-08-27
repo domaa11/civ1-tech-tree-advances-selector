@@ -989,13 +989,14 @@
         if (!combinedPrereqs.length) {
           chainEl.innerHTML = '<div class="empty">Selected technologies have no prerequisites</div>';
         } else if (hasCustomOrder) {
-          // Use the existing custom order, but ensure all targets are included
+          // Use the existing custom order, but ensure all prerequisites and targets are included
           const allTechsInOrder = [...currentOrder];
 
-          // Add any missing targets to the end
-          selectedTargets.forEach((target) => {
-            if (!allTechsInOrder.includes(target)) {
-              allTechsInOrder.push(target);
+          // Add any missing prerequisites and targets
+          const allRequiredTechs = [...combinedPrereqs, ...selectedTargets];
+          allRequiredTechs.forEach((tech) => {
+            if (!allTechsInOrder.includes(tech)) {
+              allTechsInOrder.push(tech);
             }
           });
 
